@@ -186,12 +186,10 @@ const getActiveVaultPass=()=>($('vault-pass-input')?$('vault-pass-input').value.
 const getActiveGitHubToken=()=>($('gh-token')?$('gh-token').value.trim():'')||localStorage.getItem('ch_gh_token')||'';
 const getActiveRepo=()=>(($('gh-repo')?$('gh-repo').value.trim():'')||localStorage.getItem('ch_gh_repo')||REPO_DEFAULT);
 
-// --- CORRECCIÓN CLAVE: PRIORIZAR EL INPUT SOBRE LA MEMORIA ---
 const getActiveBaseUrl = () => ($('base-url-input') ? $('base-url-input').value.trim() : '') || localStorage.getItem('ch_base_url') || appData.baseUrl || '';
 const getActiveGlobalToken = () => extractToken(($('global-token') ? $('global-token').value.trim() : '') || localStorage.getItem('ch_global_token') || appData.token || '');
 
 function getActiveChannels(){
-  // 1. PRIORIDAD ABSOLUTA AL TEXTAREA DEL ADMIN / STORAGE PARA QUE TOME LOS CAMBIOS NUEVOS
   const rawText=($('vault-json-input')?$('vault-json-input').value.trim():'')||localStorage.getItem('ch_vault_json')||'';
   if(rawText){
     try{
@@ -200,7 +198,6 @@ function getActiveChannels(){
       if(parsed&&Array.isArray(parsed.canales)) return parsed.canales;
     }catch(e){}
   }
-  // 2. Si el textarea está vacío, usa la memoria appData
   return appData.canales || [];
 }
 
@@ -342,11 +339,17 @@ async function loadEmbedConfig(id){
 function isLocalBase(u){
   try{const x=new URL(u);return !/^https?:$/.test(x.protocol)||x.hostname==='localhost'||/^(127\.|10\.|192\.168\.)/.test(x.hostname);}catch(_){return true;}
 }
-function pagesUrl(repo){const [u,r]=repo.split('/'),h=u.toLowerCase()+'.github.io';return (r||'').toLowerCase()===h?`https://${h}/inicio.html`:`https://${h}/${r}/inicio.html`;}
+// --- ADAPTADO A INDEX.HTML ---
+function pagesUrl(repo){
+  const [u,r]=repo.split('/');
+  const h=u.toLowerCase()+'.github.io';
+  return (r||'').toLowerCase()===h?`https://${h}/`:`https://${h}/${r}/`;
+}
 function getPublicBase(){
   let href=location.href.split('?')[0].split('#')[0];
-  if(isLocalBase(href)||href.includes('codebeautify.org')||!href.endsWith('inicio.html')){
-    return pagesUrl(getActiveRepo());
+  if(isLocalBase(href)||href.includes('codebeautify.org')||!href.endsWith('index.html')&&!href.endsWith('/')){
+    // Si no termina en index.html o barra, lo limpiamos para que apunte al index de la ruta
+    if(!href.endsWith('/')) href = href.substring(0, href.lastIndexOf('/') + 1);
   }
   return href;
 }
@@ -468,7 +471,7 @@ function renderChannelsTable(){
       <td class="p-2.5 text-right"><button onclick="playChannelByIndex(${idx})" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] cursor-pointer"><i class="fa-solid fa-play"></i> Reproducir</button></td></tr>`;
   });
   container.innerHTML=html+'</tbody></table>';
-}
+};
 
 window.playChannelByIndex=function(i){
   const canales=getActiveChannels();
