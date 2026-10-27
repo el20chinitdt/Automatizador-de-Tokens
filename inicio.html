@@ -186,17 +186,28 @@ const getActiveVaultPass=()=>($('vault-pass-input')?$('vault-pass-input').value.
 const getActiveGitHubToken=()=>($('gh-token')?$('gh-token').value.trim():'')||localStorage.getItem('ch_gh_token')||'';
 const getActiveRepo=()=>(($('gh-repo')?$('gh-repo').value.trim():'')||localStorage.getItem('ch_gh_repo')||REPO_DEFAULT);
 
+// --- UNIFICACIÓN DE LECTURA DIRECTA DE LOS INPUTS ---
 const getActiveBaseUrl = () => ($('base-url-input') ? $('base-url-input').value.trim() : '') || localStorage.getItem('ch_base_url') || appData.baseUrl || '';
 const getActiveGlobalToken = () => extractToken(($('global-token') ? $('global-token').value.trim() : '') || localStorage.getItem('ch_global_token') || appData.token || '');
 
 function getActiveChannels(){
-  const rawText=($('vault-json-input')?$('vault-json-input').value.trim():'')||localStorage.getItem('ch_vault_json')||'';
-  if(rawText){
+  const jsonInput = $('vault-json-input');
+  if(jsonInput && jsonInput.value.trim()){
     try{
-      const parsed=JSON.parse(rawText);
+      const parsed = JSON.parse(jsonInput.value.trim());
       if(Array.isArray(parsed)) return parsed;
-      if(parsed&&Array.isArray(parsed.canales)) return parsed.canales;
-    }catch(e){}
+      if(parsed && Array.isArray(parsed.canales)) return parsed.canales;
+    }catch(e){
+      console.warn("JSON actual en textarea no válido aún:", e);
+    }
+  }
+  const saved = localStorage.getItem('ch_vault_json');
+  if(saved){
+    try{
+      const parsed = JSON.parse(saved);
+      if(Array.isArray(parsed)) return parsed;
+      if(parsed && Array.isArray(parsed.canales)) return parsed.canales;
+    }catch(_){}
   }
   return appData.canales || [];
 }
@@ -339,17 +350,11 @@ async function loadEmbedConfig(id){
 function isLocalBase(u){
   try{const x=new URL(u);return !/^https?:$/.test(x.protocol)||x.hostname==='localhost'||/^(127\.|10\.|192\.168\.)/.test(x.hostname);}catch(_){return true;}
 }
-// --- ADAPTADO A INDEX.HTML ---
-function pagesUrl(repo){
-  const [u,r]=repo.split('/');
-  const h=u.toLowerCase()+'.github.io';
-  return (r||'').toLowerCase()===h?`https://${h}/`:`https://${h}/${r}/`;
-}
+function pagesUrl(repo){const [u,r]=repo.split('/'),h=u.toLowerCase()+'.github.io';return (r||'').toLowerCase()===h?`https://${h}/inicio.html`:`https://${h}/${r}/inicio.html`;}
 function getPublicBase(){
   let href=location.href.split('?')[0].split('#')[0];
-  if(isLocalBase(href)||href.includes('codebeautify.org')||!href.endsWith('index.html')&&!href.endsWith('/')){
-    // Si no termina en index.html o barra, lo limpiamos para que apunte al index de la ruta
-    if(!href.endsWith('/')) href = href.substring(0, href.lastIndexOf('/') + 1);
+  if(isLocalBase(href)||href.includes('codebeautify.org')||!href.endsWith('inicio.html')){
+    return pagesUrl(getActiveRepo());
   }
   return href;
 }
@@ -394,45 +399,66 @@ window.addEventListener('DOMContentLoaded',async()=>{
 
 window.formatAndRewriteJson=function(){
   saveInputsToStorage();
-  appData.canales=getActiveChannels();
-  if($('ch-count')) $('ch-count').textContent=appData.canales.length;
-  if($('vault-json-input')&&appData.canales.length>0){
-    $('vault-json-input').value=JSON.stringify(appData.canales,null,2);
+  const channels=getActiveChannels();
+  if($('ch-count')) $('ch-count').textContent=channels.length;
+  if($('vault-json-input')&&channels.length>0){
+    $('vault-json-input').value=JSON.stringify(channels,null,2);
   }
-  alert('¡Casilleros sincronizados correctamente!');
+  alert('¡Casilleros y JSON sincronizados correctamente!');
 };
 
+// --- FUNCIÓN DE PUBLICACIÓN UNIFICADA Y BLINDADA ---
 window.publishDirectToGitHub=async function(){
-  formatAndRewriteJson();
-  const pat=getActiveGitHubToken(),repo=getActiveRepo(),pass=getActiveVaultPass(),st=$('admin-status');
+  saveInputsToStorage();
+  const pat=getActiveGitHubToken();
+  const repo=getActiveRepo();
+  const pass=getActiveVaultPass();
+  const st=$('admin-status');
+
   if(!pat){alert('Falta el GitHub Personal Access Token (PAT).');return;}
   if(!repo){alert('Falta el repositorio.');return;}
   if(!pass){alert('Falta la Contraseña Maestra.');return;}
 
-  const channelsList=getActiveChannels();
-  const baseUrlVal=getActiveBaseUrl();
-  const tokenVal=getActiveGlobalToken();
+  // Validar y capturar los datos frescos directamente de los inputs
+  let channelsList;
+  try {
+    const rawJson = $('vault-json-input').value.trim();
+    channelsList = JSON.parse(rawJson);
+    if(!Array.isArray(channelsList)) throw new Error('El JSON debe ser un array de canales.');
+  } catch(err) {
+    alert('Error en el formato del JSON de canales: ' + err.message);
+    return;
+  }
+
+  const baseUrlVal = getActiveBaseUrl();
+  const tokenVal = getActiveGlobalToken();
 
   const apiUrl=`https://api.github.com/repos/${repo}/contents/token.json`;
   const headers={'Authorization':`token ${pat}`,'Accept':'application/vnd.github.v3+json'};
+
   try{
-    if(st)st.textContent='Cifrando configuración...';
-    const encObj=JSON.parse(await CryptoEngine.encryptJson({baseUrl:baseUrlVal,token:tokenVal,canales:channelsList},pass));
+    if(st) st.textContent='Cifrando configuración completa...';
+    const encObj=JSON.parse(await CryptoEngine.encryptJson({baseUrl:baseUrlVal, token:tokenVal, canales:channelsList}, pass));
     encObj.embedKey=await accessKeyFor(pass);
     const encrypted=JSON.stringify(encObj);
+    
     let sha='';
-    try{const g=await fetch(apiUrl+'?t='+Date.now(),{cache:'no-store',headers});if(g.ok)sha=(await g.json()).sha;}catch(err){}
+    try{
+      const g=await fetch(apiUrl+'?t='+Date.now(),{cache:'no-store',headers});
+      if(g.ok) sha=(await g.json()).sha;
+    }catch(err){}
 
-    if(st)st.textContent='Enviando a GitHub...';
-    const body={message:'Update token.json',content:btoa(unescape(encodeURIComponent(encrypted)))};
-    if(sha)body.sha=sha;
+    if(st) st.textContent='Enviando a GitHub...';
+    const body={message:'Update token.json with new tokens & channels', content:btoa(unescape(encodeURIComponent(encrypted)))};
+    if(sha) body.sha=sha;
+
     const put=await fetch(apiUrl,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!put.ok)throw new Error((await put.json()).message||'Error API GitHub');
+    if(!put.ok) throw new Error((await put.json()).message||'Error API GitHub');
 
-    if(st)st.textContent='¡Publicado y cifrado!';
-    alert('¡token.json publicado correctamente!');
+    if(st) st.textContent='¡Publicado y cifrado con éxito!';
+    alert('¡token.json y nuevos tokens publicados en GitHub correctamente!');
   }catch(e){
-    if(st)st.textContent='Error al publicar';
+    if(st) st.textContent='Error al publicar';
     alert('Fallo al publicar: '+e.message);
   }
 };
@@ -445,8 +471,8 @@ window.switchTab=async function(tab){
   if(!content||!btn)return;
   content.classList.add('active');
   btn.classList.add('active');
-  appData.canales=getActiveChannels();
-  if($('ch-count')) $('ch-count').textContent=appData.canales.length;
+  const canales=getActiveChannels();
+  if($('ch-count')) $('ch-count').textContent=canales.length;
   if(tab==='channels')renderChannelsTable();
   if(tab==='player'){if(!player)initShakaPlayer();else loadStream();}
   if(tab==='embeds')renderEmbedsGallery();
@@ -471,7 +497,7 @@ function renderChannelsTable(){
       <td class="p-2.5 text-right"><button onclick="playChannelByIndex(${idx})" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] cursor-pointer"><i class="fa-solid fa-play"></i> Reproducir</button></td></tr>`;
   });
   container.innerHTML=html+'</tbody></table>';
-};
+}
 
 window.playChannelByIndex=function(i){
   const canales=getActiveChannels();
