@@ -39,7 +39,7 @@ html.is-embed #flow-player{position:absolute!important;inset:0!important;width:1
 if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement.classList.add('is-embed');
 (function(){
   if(navigator.webdriver||window.__nightmare||navigator.userAgent.includes('HeadlessChrome')){
-    document.documentElement.innerHTML='<div style="background:#000;color:#ef4444;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial;font-size:16px;">Acceso denegado.</div>';
+    document.documentElement.innerHTML='<div style="background:#000;color:#ef4444;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial;font-size:16px;">Acceso denegado. Entorno no autorizado.</div>';
     throw new Error('Entorno no autorizado.');
   }
   setInterval(function(){
@@ -65,7 +65,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
     <i class="fa-solid fa-tv text-sky-400 text-xl"></i>
     <div>
       <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - SECURE VAULT OTT</h1>
-      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault Segura (JSON Hermético Autónomo)</p>
+      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault Segura (AES-256 + KDF 800k + SHA + XOR + Anti-DevTools)</p>
     </div>
   </div>
   <div class="flex gap-2">
@@ -117,8 +117,8 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 
   <div id="content-admin" class="tab-content flex-col overflow-y-auto space-y-6 p-4 sm:p-6 w-full h-full bg-gray-900">
     <div class="bg-gray-950 border border-gray-800 rounded-lg p-6 space-y-4 max-w-3xl mx-auto w-full">
-      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN (BÓVEDA AUTÓNOMA)</h2>
-      <p class="text-xs text-gray-400">Los datos se aseguran con 800k iteraciones y se leen de forma autónoma desde el JSON cifrado.</p>
+      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN (BÓVEDA AUTÓNOMA BLINDADA)</h2>
+      <p class="text-xs text-gray-400">Protegido con AES-256-GCM, KDF (800k iteraciones), SHA-256 y XOR obfuscation.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
           <label for="gh-token" class="text-xs text-gray-300 block font-medium">GitHub Personal Access Token (PAT):</label>
@@ -165,7 +165,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 (function(){
 const SALT_BYTES=new Uint8Array([112,54,189,42,77,12,230,155,91,204,33,140,55,188,90,11]);
 const $=id=>document.getElementById(id);
-const KDF_ITER=800000; // Blindaje máximo de 800k iteraciones
+const KDF_ITER=800000;
 const REPO_DEFAULT='el20chinitdt/Automatizador-de-Tokens';
 const FIELDS=[['gh-token','ch_gh_token'],['gh-repo','ch_gh_repo'],['vault-pass-input','ch_vault_pass'],['base-url-input','ch_base_url'],['global-token','ch_global_token'],['vault-json-input','ch_vault_json']];
 
@@ -278,7 +278,6 @@ function normalizeConfig(data){
   return{baseUrl:String(data.baseUrl??data.base_url??data.base??'').trim(),token:extractToken(String(data.token??'')),canales};
 }
 
-// Descarga y descifra token.json usando exclusivamente la Contraseña Maestra (Cero dependencia de URL)
 async function loadConfigDataFromVault(){
   const pass = getActiveVaultPass();
   if(!pass) return {baseUrl:'',token:'',canales:[],error:'Falta la Contraseña Maestra en el Panel de Administración.'};
@@ -324,7 +323,6 @@ function showPlayerMessage(msg,color){
 }
 function hidePlayerMessage(){const d=$('fp_diag');if(d)d.remove();}
 
-// --- EMBEDS: Llaves autónomas empaquetadas dentro de token.json (Intocado y blindado) ---
 function embedSlugs(list){
   const used=new Set();
   return list.map(c=>{
@@ -354,13 +352,15 @@ async function embedKeyHex(pass,id,rev){
 async function encryptEmbed(obj,keyHex){
   const key=await crypto.subtle.importKey('raw',unhex(keyHex),'AES-GCM',false,['encrypt']);
   const iv=crypto.getRandomValues(new Uint8Array(12));
-  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode((t=>t+' '.repeat((512-t.length%512)%5125%512)))(JSON.stringify(obj)));
+  const textPayload = JSON.stringify(obj);
+  const padded = textPayload + ' '.repeat((512 - (textPayload.length % 512)) % 512);
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(padded));
   return{iv:toB64(iv),data:toB64(new Uint8Array(ct))};
 }
 async function decryptEmbed(blob,keyHex){
   const key=await crypto.subtle.importKey('raw',unhex(keyHex),'AES-GCM',false,['decrypt']);
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:fromB64(blob.iv)},key,fromB64(blob.data));
-  return JSON.parse(new TextDecoder().decode(pt));
+  return JSON.parse(new TextDecoder().decode(pt).trim());
 }
 async function loadEmbedConfig(id){
   if(!id)return{error:'Embed sin canal especificado.'};
@@ -370,7 +370,6 @@ async function loadEmbedConfig(id){
       const res=await fetch(makeUrl(),{cache:'no-store'});
       if(!res.ok)continue;
       const rawJson = await res.json();
-      // Para descifrar el embed de forma autónoma en el iframe, usamos la contraseña maestra almacenada o intentamos leer los bloques
       const pass = getActiveVaultPass();
       if(!pass) return {error:'Falta configurar la Contraseña Maestra para los embeds.'};
       
@@ -470,7 +469,7 @@ window.publishDirectToGitHub=async function(){
 
   publishing=true;
   try{
-    if(st) st.textContent='Cifrando configuración y generando embeds autónomos...';
+    if(st) st.textContent='Cifrando configuración con AES-256-GCM y generando embeds...';
     const encObj=JSON.parse(await CryptoEngine.encryptJson({baseUrl:baseUrlVal,token:tokenVal,canales:channelsList},pass));
     encObj.v=4;
     encObj.embeds={};
@@ -495,7 +494,7 @@ window.publishDirectToGitHub=async function(){
     if(!put.ok) throw new Error((await put.json()).message||'Error API GitHub');
 
     if(st) st.textContent='¡Publicado y cifrado con éxito!';
-    alert('¡token.json publicado! Los embeds ahora son autónomos y estables.');
+    alert('¡token.json publicado! Bóveda blindada y actualizada en GitHub Pages.');
   }catch(e){
     if(st) st.textContent='Error al publicar';
     alert('Fallo al publicar: '+e.message);
