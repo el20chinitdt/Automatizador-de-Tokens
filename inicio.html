@@ -60,7 +60,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
     <i class="fa-solid fa-tv text-sky-400 text-xl"></i>
     <div>
       <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - SECURE VAULT OTT</h1>
-      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault Segura (Blindada)</p>
+      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault Segura (Blindada con Salt Aleatorio)</p>
     </div>
   </div>
   <div class="flex gap-2">
@@ -157,7 +157,8 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 <script>
 'use strict';
 (function(){
-const SALT_BYTES=new Uint8Array([112,54,189,42,77,12,230,155,91,204,33,140,55,188,90,11]);
+/* Salt por defecto únicamente para retrocompatibilidad con bóvedas antiguas */
+const LEGACY_SALT_BYTES = new Uint8Array([112,54,189,42,77,12,230,155,91,204,33,140,55,188,90,11]);
 const $=id=>document.getElementById(id);
 const KDF_ITER=600000;
 const REPO_DEFAULT='el20chinitdt/Automatizador-de-Tokens';
@@ -221,15 +222,33 @@ const CryptoEngine=(()=>{
     return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
   }
   async function encryptJson(jsonData,password){
+    const salt=crypto.getRandomValues(new Uint8Array(16));
     const iv=crypto.getRandomValues(new Uint8Array(12));
-    const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},await getKdfKey(SALT_BYTES,password,KDF_ITER),new TextEncoder().encode(JSON.stringify(jsonData)));
-    return JSON.stringify({encrypted:true,version:4,iter:KDF_ITER,kdf:'PBKDF2-SHA256',cipher:'AES-256-GCM',payload:{iv:Array.from(iv),data:Array.from(new Uint8Array(enc))}});
+    const key=await getKdfKey(salt,password,KDF_ITER);
+    const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(jsonData)));
+    return JSON.stringify({
+      encrypted:true,
+      version:4,
+      iter:KDF_ITER,
+      kdf:'PBKDF2-SHA256',
+      cipher:'AES-256-GCM',
+      payload:{
+        salt:Array.from(salt),
+        iv:Array.from(iv),
+        data:Array.from(new Uint8Array(enc))
+      }
+    });
   }
   async function decryptJson(rawText,password){
     try{
       const obj=JSON.parse(rawText);
       if(obj&&obj.encrypted&&obj.payload){
-        const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(obj.payload.iv)},await getKdfKey(SALT_BYTES,password,obj.iter||100000),new Uint8Array(obj.payload.data));
+        const salt=(obj.payload.salt&&Array.isArray(obj.payload.salt))?new Uint8Array(obj.payload.salt):LEGACY_SALT_BYTES;
+        const dec=await crypto.subtle.decrypt(
+          {name:'AES-GCM',iv:new Uint8Array(obj.payload.iv)},
+          await getKdfKey(salt,password,obj.iter||100000),
+          new Uint8Array(obj.payload.data)
+        );
         const result=JSON.parse(new TextDecoder().decode(dec));
         if(!result||typeof result!=='object')throw new Error('Formato inválido');
         return result;
@@ -313,11 +332,10 @@ function showPlayerMessage(msg,color){
 }
 function hidePlayerMessage(){const d=$('fp_diag');if(d)d.remove();}
 
-/* EMBEDS ESTABLES:
-   El identificador y el hash criptográfico del embed viven en token.json.
-   La URL pública no lleva #k ni depende del token del MPD.
-   La clave derivada permanece estable mientras se mantengan la contraseña
-   maestra, el ID y la versión criptográfica del embed.
+/* EMBEDS CON SALTS ALEATORIOS:
+   Cada embed genera su propio salt criptográfico aleatorio.
+   El salt vive dentro del JSON en blob.salt (en base64).
+   La URL pública se mantiene limpia (?embed_ch=nombre-canal) y 100% estable.
 */
 function embedSlugs(list){
   const used=new Set();
@@ -334,26 +352,30 @@ const unhex=h=>{
 };
 const toB64=u8=>{let s='';u8.forEach(b=>s+=String.fromCharCode(b));return btoa(s);};
 const fromB64=b=>Uint8Array.from(atob(b),ch=>ch.charCodeAt(0));
-const EMBED_SALT=new Uint8Array([...SALT_BYTES,...new TextEncoder().encode('embed-v4')]);
 
-let embedMaster={pass:'',key:null};
+let embedMasterCache={pass:'',key:null};
 
 async function getEmbedMaster(pass){
-  if(embedMaster.pass===pass&&embedMaster.key)return embedMaster.key;
+  if(embedMasterCache.pass===pass&&embedMasterCache.key)return embedMasterCache.key;
   const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:EMBED_SALT,iterations:KDF_ITER,hash:'SHA-256'},km,256);
+  /* Salt maestro de derivación intermedia */
+  const masterSalt=new TextEncoder().encode('elchini-embed-master-v4');
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:masterSalt,iterations:KDF_ITER,hash:'SHA-256'},km,256);
   const key=await crypto.subtle.importKey('raw',bits,{name:'HMAC',hash:'SHA-256'},false,['sign']);
-  embedMaster={pass,key};
+  embedMasterCache={pass,key};
   return key;
 }
 
-async function embedKeyHex(pass,id){
-  const sig=await crypto.subtle.sign('HMAC',await getEmbedMaster(pass),new TextEncoder().encode('producciones-el-chini:embed:v4:'+String(id)));
+/* Derivación de clave única usando el salt aleatorio individual de cada embed */
+async function embedKeyHex(pass,id,saltBytes){
+  const masterKey=await getEmbedMaster(pass);
+  const payload=new Uint8Array([...saltBytes,...new TextEncoder().encode(':v4:'+String(id))]);
+  const sig=await crypto.subtle.sign('HMAC',masterKey,payload);
   return hexOf(new Uint8Array(sig));
 }
 
-async function hashEmbedKey(keyHex){
-  return CryptoEngine.sha256('elchini-embed-integrity-v4:'+keyHex);
+async function hashEmbedKey(keyHex,saltB64){
+  return CryptoEngine.sha256('elchini-embed-integrity-v4:'+(saltB64||'')+':'+keyHex);
 }
 
 async function encryptEmbed(obj,keyHex){
@@ -386,10 +408,14 @@ async function loadEmbedConfig(id){
       const blob=Object.prototype.hasOwnProperty.call(raw.embeds,sid)?raw.embeds[sid]:null;
       if(!blob)continue;
 
-      /* La clave/hash está en el JSON; nunca se lee location.hash. */
       if(!blob.k||!blob.hash)throw new Error('Falta el hash criptográfico del embed.');
-      const expected=await hashEmbedKey(blob.k);
-      if(expected!==blob.hash)throw new Error('La verificación del hash del embed falló.');
+      
+      /* Verificación del hash con soporte para el salt aleatorio */
+      const expected=await hashEmbedKey(blob.k,blob.salt||'');
+      const legacyExpected=await hashEmbedKey(blob.k,'');
+      if(expected!==blob.hash&&legacyExpected!==blob.hash){
+        throw new Error('La verificación del hash del embed falló.');
+      }
 
       const d=await decryptEmbed(blob,blob.k);
       if(!d||!d.canal)throw new Error('Configuración de canal inválida.');
@@ -490,38 +516,38 @@ window.publishDirectToGitHub=async function(){
 
   publishing=true;
   try{
-    if(st)st.textContent='Cifrando configuración y embeds...';
+    if(st)st.textContent='Cifrando con salt aleatorio independiente por canal...';
 
-    /* La configuración general se cifra con AES-GCM y PBKDF2.
-       La contraseña maestra introducida aquí se utiliza para cifrar
-       antes de publicar y debe coincidir al descifrar la bóveda. */
     const encryptedConfig=JSON.parse(await CryptoEngine.encryptJson({
       baseUrl:baseUrlVal,
       token:tokenVal,
       canales:channelsList
     },pass));
 
-    /* El hash y el cifrado de cada embed se guardan dentro del JSON.
-       La clave se deriva del ID estable, no del token MPD ni de c.rev. */
     const embeds={};
     const slugs=embedSlugs(channelsList);
 
+    /* Cada canal genera su propio salt criptográfico aleatorio */
     for(let i=0;i<channelsList.length;i++){
       const c=channelsList[i];
       const normalized=normalizeConfig({baseUrl:baseUrlVal,token:tokenVal,canales:[c]});
       const canal=normalized.canales[0];
-      const k=await embedKeyHex(pass,c.id);
-      const hash=await hashEmbedKey(k);
+      
+      const randomSalt=crypto.getRandomValues(new Uint8Array(16));
+      const saltB64=toB64(randomSalt);
+
+      const k=await embedKeyHex(pass,c.id,randomSalt);
+      const hash=await hashEmbedKey(k,saltB64);
+      
       const blob=await encryptEmbed({
         baseUrl:baseUrlVal,
         token:tokenVal,
         canal
       },k);
-      embeds[slugs[i]]={...blob,k,hash};
+      
+      embeds[slugs[i]]={...blob,salt:saltB64,k,hash};
     }
 
-    /* Se mantiene la forma exterior que consume el cargador:
-       encrypted/payload para la bóveda y embeds para los iframes. */
     const finalJSON={
       ...encryptedConfig,
       version:4,
@@ -535,7 +561,7 @@ window.publishDirectToGitHub=async function(){
 
     if(st)st.textContent='Enviando a GitHub...';
     const body={
-      message:'Update encrypted OTT vault and stable channel embeds',
+      message:'Update OTT vault and embeds with per-channel random salts',
       content:btoa(unescape(encodeURIComponent(JSON.stringify(finalJSON))))
     };
     if(sha)body.sha=sha;
@@ -552,8 +578,8 @@ window.publishDirectToGitHub=async function(){
       throw new Error(detail);
     }
 
-    if(st)st.textContent='¡Publicado y cifrado con éxito!';
-    alert('¡token.json publicado! Los enlaces de los embeds permanecen estables al renovar el token del MPD. GitHub Pages puede tardar unos minutos en actualizarse.');
+    if(st)st.textContent='¡Publicado y blindado con salt aleatorio!';
+    alert('¡token.json publicado! Cada embed cuenta ahora con su propio salt aleatorio independiente y los enlaces permanecen estables.');
   }catch(e){
     if(st)st.textContent='Error al publicar';
     alert('Fallo al publicar: '+e.message);
@@ -771,7 +797,6 @@ async function renderEmbedsGallery(){
 
   for(const c of filtered){
     const id=slugs[canales.indexOf(c)];
-    /* El hash NO va en la URL. Está guardado en el JSON publicado. */
     const src=`${base}?embed_ch=${encodeURIComponent(id)}`;
     const code=`<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;"><iframe src="${src}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="autoplay;encrypted-media;fullscreen;picture-in-picture;clipboard-write" allowfullscreen title="${escapeHTML(c.name)}"></iframe></div>`;
 
