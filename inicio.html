@@ -126,8 +126,8 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
-          <label for="vault-pass-input" class="text-xs text-sky-400 block font-bold">Contraseña Maestra (Descifrado):</label>
-          <input type="password" id="vault-pass-input" oninput="saveInputsToStorage()" placeholder="Contraseña del JSON..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
+          <label for="vault-pass-input" class="text-xs text-sky-400 block font-bold">Contraseña Maestra de Cifrado:</label>
+          <input type="password" id="vault-pass-input" oninput="saveInputsToStorage()" placeholder="Contraseña maestra para cifrar token.json..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
         </div>
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
           <label for="base-url-input" class="text-xs text-sky-400 block font-bold">Base URL del Servidor:</label>
@@ -215,7 +215,6 @@ function getActiveChannels(){
 }
 
 const CryptoEngine=(()=>{
-  const xorMask=(t,s)=>{let r='';for(let i=0;i<t.length;i++)r+=String.fromCharCode(t.charCodeAt(i)^s.charCodeAt(i%s.length));return r;};
   async function sha256(m){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
   async function getKdfKey(salt,password,iter=100000){
     const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),{name:'PBKDF2'},false,['deriveBits','deriveKey']);
@@ -276,7 +275,7 @@ function normalizeConfig(data){
 
 async function loadConfigData(){
   const pass=getActiveVaultPass();
-  if(!pass)return{baseUrl:'',token:'',canales:[],error:'Ingrese la Contraseña Maestra en Admin.'};
+  if(!pass)return{baseUrl:'',token:'',canales:[],error:'Ingrese la Contraseña Maestra de Cifrado en Admin.'};
   for(const makeUrl of getRepoConfigSources()){
     try{
       const res=await fetch(makeUrl(),{cache:'no-store'});
@@ -285,7 +284,7 @@ async function loadConfigData(){
       if(cfg&&cfg.canales.length>0)return{...cfg,error:''};
     }catch(e){console.warn('Fallo al cargar fuente remota o descifrar:',e);}
   }
-  return{baseUrl:'',token:'',canales:[],error:'No se pudo descifrar token.json. Contraseña incorrecta o archivo vacío.'};
+  return{baseUrl:'',token:'',canales:[],error:'No se pudo descifrar token.json. Comprobá la contraseña maestra o el archivo publicado.'};
 }
 
 function applyConfigToInputs(cfg){
@@ -472,7 +471,7 @@ window.publishDirectToGitHub=async function(){
   const pat=getActiveGitHubToken(),repo=getActiveRepo(),pass=getActiveVaultPass(),st=$('admin-status');
   if(!pat){alert('Falta el GitHub Personal Access Token (PAT).');return;}
   if(!repo||!repo.includes('/')){alert('El repositorio debe tener el formato usuario/repo.');return;}
-  if(!pass){alert('Falta la Contraseña Maestra.');return;}
+  if(!pass){alert('Falta la Contraseña Maestra de Cifrado.');return;}
 
   let channelsList;
   try{
@@ -493,7 +492,9 @@ window.publishDirectToGitHub=async function(){
   try{
     if(st)st.textContent='Cifrando configuración y embeds...';
 
-    /* La configuración general sigue cifrada con AES-GCM y PBKDF2. */
+    /* La configuración general se cifra con AES-GCM y PBKDF2.
+       La contraseña maestra introducida aquí se utiliza para cifrar
+       antes de publicar y debe coincidir al descifrar la bóveda. */
     const encryptedConfig=JSON.parse(await CryptoEngine.encryptJson({
       baseUrl:baseUrlVal,
       token:tokenVal,
