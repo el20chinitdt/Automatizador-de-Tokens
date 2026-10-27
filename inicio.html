@@ -60,7 +60,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
     <i class="fa-solid fa-tv text-sky-400 text-xl"></i>
     <div>
       <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - SECURE VAULT OTT</h1>
-      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault Segura (Blindada con Salt Aleatorio)</p>
+      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault 100% Criptográfica (Salts Aleatorios Puros)</p>
     </div>
   </div>
   <div class="flex gap-2">
@@ -112,7 +112,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 
   <div id="content-admin" class="tab-content flex-col overflow-y-auto space-y-6 p-4 sm:p-6 w-full h-full bg-gray-900">
     <div class="bg-gray-950 border border-gray-800 rounded-lg p-6 space-y-4 max-w-3xl mx-auto w-full">
-      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN (BLINDADO)</h2>
+      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN (100% RANDOM SALT)</h2>
       <p class="text-xs text-gray-400">Los datos se guardan de forma permanente en tu dispositivo y se leen en tiempo real.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
@@ -157,8 +157,6 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 <script>
 'use strict';
 (function(){
-/* Salt por defecto únicamente para retrocompatibilidad con bóvedas antiguas */
-const LEGACY_SALT_BYTES = new Uint8Array([112,54,189,42,77,12,230,155,91,204,33,140,55,188,90,11]);
 const $=id=>document.getElementById(id);
 const KDF_ITER=600000;
 const REPO_DEFAULT='el20chinitdt/Automatizador-de-Tokens';
@@ -243,10 +241,13 @@ const CryptoEngine=(()=>{
     try{
       const obj=JSON.parse(rawText);
       if(obj&&obj.encrypted&&obj.payload){
-        const salt=(obj.payload.salt&&Array.isArray(obj.payload.salt))?new Uint8Array(obj.payload.salt):LEGACY_SALT_BYTES;
+        if(!obj.payload.salt||!Array.isArray(obj.payload.salt)||!obj.payload.salt.length){
+          throw new Error('Bóveda incompatible: requiere salt aleatorio.');
+        }
+        const salt=new Uint8Array(obj.payload.salt);
         const dec=await crypto.subtle.decrypt(
           {name:'AES-GCM',iv:new Uint8Array(obj.payload.iv)},
-          await getKdfKey(salt,password,obj.iter||100000),
+          await getKdfKey(salt,password,obj.iter||KDF_ITER),
           new Uint8Array(obj.payload.data)
         );
         const result=JSON.parse(new TextDecoder().decode(dec));
@@ -254,7 +255,7 @@ const CryptoEngine=(()=>{
         return result;
       }
       return obj;
-    }catch(e){throw new Error('Contraseña incorrecta o formato inválido.');}
+    }catch(e){throw new Error('Contraseña incorrecta o formato de bóveda inválido.');}
   }
   return{encryptJson,decryptJson,sha256};
 })();
@@ -332,10 +333,9 @@ function showPlayerMessage(msg,color){
 }
 function hidePlayerMessage(){const d=$('fp_diag');if(d)d.remove();}
 
-/* EMBEDS CON SALTS ALEATORIOS:
-   Cada embed genera su propio salt criptográfico aleatorio.
-   El salt vive dentro del JSON en blob.salt (en base64).
-   La URL pública se mantiene limpia (?embed_ch=nombre-canal) y 100% estable.
+/* EMBEDS 100% SALT ALEATORIO:
+   Cada canal tiene su propio salt criptográfico generado al azar.
+   Los enlaces son públicos, directos y estables.
 */
 function embedSlugs(list){
   const used=new Set();
@@ -353,29 +353,20 @@ const unhex=h=>{
 const toB64=u8=>{let s='';u8.forEach(b=>s+=String.fromCharCode(b));return btoa(s);};
 const fromB64=b=>Uint8Array.from(atob(b),ch=>ch.charCodeAt(0));
 
-let embedMasterCache={pass:'',key:null};
-
-async function getEmbedMaster(pass){
-  if(embedMasterCache.pass===pass&&embedMasterCache.key)return embedMasterCache.key;
+async function createMasterHmacKey(pass,randomMasterSalt){
   const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveBits']);
-  /* Salt maestro de derivación intermedia */
-  const masterSalt=new TextEncoder().encode('elchini-embed-master-v4');
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:masterSalt,iterations:KDF_ITER,hash:'SHA-256'},km,256);
-  const key=await crypto.subtle.importKey('raw',bits,{name:'HMAC',hash:'SHA-256'},false,['sign']);
-  embedMasterCache={pass,key};
-  return key;
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:randomMasterSalt,iterations:KDF_ITER,hash:'SHA-256'},km,256);
+  return crypto.subtle.importKey('raw',bits,{name:'HMAC',hash:'SHA-256'},false,['sign']);
 }
 
-/* Derivación de clave única usando el salt aleatorio individual de cada embed */
-async function embedKeyHex(pass,id,saltBytes){
-  const masterKey=await getEmbedMaster(pass);
-  const payload=new Uint8Array([...saltBytes,...new TextEncoder().encode(':v4:'+String(id))]);
-  const sig=await crypto.subtle.sign('HMAC',masterKey,payload);
+async function embedKeyHex(masterHmacKey,id,randomEmbedSalt){
+  const payload=new Uint8Array([...randomEmbedSalt,...new TextEncoder().encode(':v4:'+String(id))]);
+  const sig=await crypto.subtle.sign('HMAC',masterHmacKey,payload);
   return hexOf(new Uint8Array(sig));
 }
 
 async function hashEmbedKey(keyHex,saltB64){
-  return CryptoEngine.sha256('elchini-embed-integrity-v4:'+(saltB64||'')+':'+keyHex);
+  return CryptoEngine.sha256('elchini-embed-integrity-v4:'+String(saltB64)+':'+keyHex);
 }
 
 async function encryptEmbed(obj,keyHex){
@@ -408,12 +399,10 @@ async function loadEmbedConfig(id){
       const blob=Object.prototype.hasOwnProperty.call(raw.embeds,sid)?raw.embeds[sid]:null;
       if(!blob)continue;
 
-      if(!blob.k||!blob.hash)throw new Error('Falta el hash criptográfico del embed.');
+      if(!blob.k||!blob.hash||!blob.salt)throw new Error('Embed inválido: falta clave, hash o salt aleatorio.');
       
-      /* Verificación del hash con soporte para el salt aleatorio */
-      const expected=await hashEmbedKey(blob.k,blob.salt||'');
-      const legacyExpected=await hashEmbedKey(blob.k,'');
-      if(expected!==blob.hash&&legacyExpected!==blob.hash){
+      const expected=await hashEmbedKey(blob.k,blob.salt);
+      if(expected!==blob.hash){
         throw new Error('La verificación del hash del embed falló.');
       }
 
@@ -431,7 +420,7 @@ async function loadEmbedConfig(id){
       if(cfg&&cfg.canales.length)return{...cfg,error:''};
     }catch(e){
       console.warn('Embed:',e);
-      err='No se pudo verificar o descifrar el embed. Publicá nuevamente el JSON y comprobá la contraseña maestra.';
+      err='No se pudo verificar o descifrar el embed. Publicá nuevamente el JSON con salt aleatorio.';
     }
   }
   return{error:err};
@@ -516,7 +505,7 @@ window.publishDirectToGitHub=async function(){
 
   publishing=true;
   try{
-    if(st)st.textContent='Cifrando con salt aleatorio independiente por canal...';
+    if(st)st.textContent='Cifrando con salt 100% aleatorio puro...';
 
     const encryptedConfig=JSON.parse(await CryptoEngine.encryptJson({
       baseUrl:baseUrlVal,
@@ -527,16 +516,20 @@ window.publishDirectToGitHub=async function(){
     const embeds={};
     const slugs=embedSlugs(channelsList);
 
-    /* Cada canal genera su propio salt criptográfico aleatorio */
+    /* Generación de salt maestro aleatorio para la sesión de publicación */
+    const randomMasterSalt=crypto.getRandomValues(new Uint8Array(16));
+    const masterKey=await createMasterHmacKey(pass,randomMasterSalt);
+
+    /* Cada embed genera su propio salt aleatorio individual */
     for(let i=0;i<channelsList.length;i++){
       const c=channelsList[i];
       const normalized=normalizeConfig({baseUrl:baseUrlVal,token:tokenVal,canales:[c]});
       const canal=normalized.canales[0];
       
-      const randomSalt=crypto.getRandomValues(new Uint8Array(16));
-      const saltB64=toB64(randomSalt);
+      const randomEmbedSalt=crypto.getRandomValues(new Uint8Array(16));
+      const saltB64=toB64(randomEmbedSalt);
 
-      const k=await embedKeyHex(pass,c.id,randomSalt);
+      const k=await embedKeyHex(masterKey,c.id,randomEmbedSalt);
       const hash=await hashEmbedKey(k,saltB64);
       
       const blob=await encryptEmbed({
@@ -561,7 +554,7 @@ window.publishDirectToGitHub=async function(){
 
     if(st)st.textContent='Enviando a GitHub...';
     const body={
-      message:'Update OTT vault and embeds with per-channel random salts',
+      message:'Publish purely random-salted vault and channel embeds',
       content:btoa(unescape(encodeURIComponent(JSON.stringify(finalJSON))))
     };
     if(sha)body.sha=sha;
@@ -578,8 +571,8 @@ window.publishDirectToGitHub=async function(){
       throw new Error(detail);
     }
 
-    if(st)st.textContent='¡Publicado y blindado con salt aleatorio!';
-    alert('¡token.json publicado! Cada embed cuenta ahora con su propio salt aleatorio independiente y los enlaces permanecen estables.');
+    if(st)st.textContent='¡Publicado con éxito (Salts Aleatorios Puros)!';
+    alert('¡token.json publicado! Todos los canales y la bóveda fueron cifrados con salts 100% aleatorios.');
   }catch(e){
     if(st)st.textContent='Error al publicar';
     alert('Fallo al publicar: '+e.message);
