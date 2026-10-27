@@ -39,14 +39,9 @@ html.is-embed #flow-player{position:absolute!important;inset:0!important;width:1
 if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement.classList.add('is-embed');
 (function(){
   if(navigator.webdriver||window.__nightmare||navigator.userAgent.includes('HeadlessChrome')){
-    document.documentElement.innerHTML='<div style="background:#000;color:#ef4444;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial;font-size:16px;">Acceso denegado. Entorno no autorizado.</div>';
+    document.documentElement.innerHTML='<div style="background:#000;color:#ef4444;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial;font-size:16px;">Acceso denegado.</div>';
     throw new Error('Entorno no autorizado.');
   }
-  setInterval(function(){
-    const s=performance.now();
-    try{(function(){}.constructor("debugger")());}catch(e){}
-    if(performance.now()-s>100){document.body.innerHTML='';location.reload();}
-  },350);
   window.addEventListener('contextmenu',e=>e.preventDefault(),true);
   window.addEventListener('keydown',e=>{
     const k=(e.key||'').toUpperCase();
@@ -65,7 +60,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
     <i class="fa-solid fa-tv text-sky-400 text-xl"></i>
     <div>
       <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - SECURE VAULT OTT</h1>
-      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault Segura (AES-256 + KDF 800k + SHA + XOR + Anti-DevTools)</p>
+      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault Segura (Blindada)</p>
     </div>
   </div>
   <div class="flex gap-2">
@@ -110,15 +105,15 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
   <div id="content-embeds" class="tab-content flex-col p-4 sm:p-6 w-full h-full bg-gray-900">
     <div class="p-3 border-b border-gray-800 flex justify-between items-center gap-4 bg-gray-900/50 shrink-0 rounded-t-lg">
       <input type="text" id="search-embeds-box" oninput="renderEmbedsGallery()" placeholder="Filtrar embeds..." class="bg-gray-800 border border-gray-700 text-white px-3 py-1.5 rounded text-sm w-72 max-w-full focus:outline-none focus:border-sky-400">
-      <span class="text-xs text-sky-400 font-medium">Links limpios y estables. Después de cambiar canales, publicá.</span>
+      <span class="text-xs text-sky-400 font-medium">El link usa el nombre del canal. Después de cambiar canales, publicá.</span>
     </div>
     <div class="flex-1 min-h-0 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-start bg-gray-950/50 rounded-b-lg border border-gray-800 border-t-0" id="embeds-grid-container"></div>
   </div>
 
   <div id="content-admin" class="tab-content flex-col overflow-y-auto space-y-6 p-4 sm:p-6 w-full h-full bg-gray-900">
     <div class="bg-gray-950 border border-gray-800 rounded-lg p-6 space-y-4 max-w-3xl mx-auto w-full">
-      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN (BÓVEDA AUTÓNOMA BLINDADA)</h2>
-      <p class="text-xs text-gray-400">Protegido con AES-256-GCM, KDF (800k iteraciones), SHA-256 y XOR obfuscation.</p>
+      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN (BLINDADO)</h2>
+      <p class="text-xs text-gray-400">Los datos se guardan de forma permanente en tu dispositivo y se leen en tiempo real.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
           <label for="gh-token" class="text-xs text-gray-300 block font-medium">GitHub Personal Access Token (PAT):</label>
@@ -131,7 +126,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
-          <label for="vault-pass-input" class="text-xs text-sky-400 block font-bold">Contraseña Maestra (Descifrado Local):</label>
+          <label for="vault-pass-input" class="text-xs text-sky-400 block font-bold">Contraseña Maestra (Descifrado):</label>
           <input type="password" id="vault-pass-input" oninput="saveInputsToStorage()" placeholder="Contraseña del JSON..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
         </div>
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
@@ -139,7 +134,6 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
           <input type="text" id="base-url-input" oninput="saveInputsToStorage()" placeholder="https://..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
         </div>
       </div>
-
       <div class="space-y-2 bg-gray-900/50 p-4 rounded border border-gray-800">
         <label for="global-token" class="text-xs text-gray-300 block font-medium">Token Global Activo (Streaming):</label>
         <input type="text" id="global-token" oninput="saveInputsToStorage()" placeholder="Token global opcional..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-green-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
@@ -165,11 +159,12 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 (function(){
 const SALT_BYTES=new Uint8Array([112,54,189,42,77,12,230,155,91,204,33,140,55,188,90,11]);
 const $=id=>document.getElementById(id);
-const KDF_ITER=800000;
+const KDF_ITER=600000;
 const REPO_DEFAULT='el20chinitdt/Automatizador-de-Tokens';
 const FIELDS=[['gh-token','ch_gh_token'],['gh-repo','ch_gh_repo'],['vault-pass-input','ch_vault_pass'],['base-url-input','ch_base_url'],['global-token','ch_global_token'],['vault-json-input','ch_vault_json']];
 
 window.saveInputsToStorage=function(){
+  if(isEmbedMode)return;
   try{FIELDS.forEach(([id,k])=>{const el=$(id);if(el)localStorage.setItem(k,el.value);});}catch(_){}
 };
 function restoreInputsFromStorage(){
@@ -222,27 +217,28 @@ function getActiveChannels(){
 const CryptoEngine=(()=>{
   const xorMask=(t,s)=>{let r='';for(let i=0;i<t.length;i++)r+=String.fromCharCode(t.charCodeAt(i)^s.charCodeAt(i%s.length));return r;};
   async function sha256(m){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
-  async function getKdfKey(salt,password,iter=800000){
-    const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(await sha256(password)),{name:'PBKDF2'},false,['deriveBits','deriveKey']);
+  async function getKdfKey(salt,password,iter=100000){
+    const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),{name:'PBKDF2'},false,['deriveBits','deriveKey']);
     return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
   }
   async function encryptJson(jsonData,password){
-    const masked=xorMask(JSON.stringify(jsonData),(await sha256(password)).substring(0,16));
     const iv=crypto.getRandomValues(new Uint8Array(12));
-    const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},await getKdfKey(SALT_BYTES,password,KDF_ITER),new TextEncoder().encode(masked));
-    return JSON.stringify({encrypted:true,iter:KDF_ITER,kdf:true,sha:true,xor:true,payload:{iv:Array.from(iv),data:Array.from(new Uint8Array(enc))}});
+    const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},await getKdfKey(SALT_BYTES,password,KDF_ITER),new TextEncoder().encode(JSON.stringify(jsonData)));
+    return JSON.stringify({encrypted:true,version:4,iter:KDF_ITER,kdf:'PBKDF2-SHA256',cipher:'AES-256-GCM',payload:{iv:Array.from(iv),data:Array.from(new Uint8Array(enc))}});
   }
   async function decryptJson(rawText,password){
     try{
       const obj=JSON.parse(rawText);
       if(obj&&obj.encrypted&&obj.payload){
-        const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(obj.payload.iv)},await getKdfKey(SALT_BYTES,password,obj.iter||KDF_ITER),new Uint8Array(obj.payload.data));
-        return JSON.parse(xorMask(new TextDecoder().decode(dec),(await sha256(password)).substring(0,16)));
+        const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(obj.payload.iv)},await getKdfKey(SALT_BYTES,password,obj.iter||100000),new Uint8Array(obj.payload.data));
+        const result=JSON.parse(new TextDecoder().decode(dec));
+        if(!result||typeof result!=='object')throw new Error('Formato inválido');
+        return result;
       }
       return obj;
     }catch(e){throw new Error('Contraseña incorrecta o formato inválido.');}
   }
-  return{encryptJson,decryptJson,sha256,xorMask};
+  return{encryptJson,decryptJson,sha256};
 })();
 
 let appData={canales:[],baseUrl:'',token:''},player=null,currentIdx=0,isEmbedMode=false,playbackRequest=0,reloadTries=0,loadedKey='',publishing=false,gallerySeq=0;
@@ -278,17 +274,14 @@ function normalizeConfig(data){
   return{baseUrl:String(data.baseUrl??data.base_url??data.base??'').trim(),token:extractToken(String(data.token??'')),canales};
 }
 
-async function loadConfigDataFromVault(){
-  const pass = getActiveVaultPass();
-  if(!pass) return {baseUrl:'',token:'',canales:[],error:'Falta la Contraseña Maestra en el Panel de Administración.'};
-
+async function loadConfigData(){
+  const pass=getActiveVaultPass();
+  if(!pass)return{baseUrl:'',token:'',canales:[],error:'Ingrese la Contraseña Maestra en Admin.'};
   for(const makeUrl of getRepoConfigSources()){
     try{
       const res=await fetch(makeUrl(),{cache:'no-store'});
       if(!res.ok)continue;
-      const rawText = await res.text();
-      const decryptedData = await CryptoEngine.decryptJson(rawText, pass);
-      const cfg=normalizeConfig(decryptedData);
+      const cfg=normalizeConfig(await CryptoEngine.decryptJson(await res.text(),pass));
       if(cfg&&cfg.canales.length>0)return{...cfg,error:''};
     }catch(e){console.warn('Fallo al cargar fuente remota o descifrar:',e);}
   }
@@ -301,13 +294,11 @@ function applyConfigToInputs(cfg){
   appData.token=cfg.token;
   appData.canales=ensureIds(cfg.canales);
   const baseInput=$('base-url-input');
-  if(baseInput&&!baseInput.value&&cfg.baseUrl) baseInput.value=cfg.baseUrl;
+  if(baseInput&&!baseInput.value&&cfg.baseUrl)baseInput.value=cfg.baseUrl;
   const globToken=$('global-token');
-  if(globToken&&!globToken.value&&cfg.token) globToken.value=cfg.token;
+  if(globToken&&!globToken.value&&cfg.token)globToken.value=cfg.token;
   const jsonInput=$('vault-json-input');
-  if(jsonInput&&!jsonInput.value&&cfg.canales&&cfg.canales.length>0){
-    jsonInput.value=JSON.stringify(appData.canales,null,2);
-  }
+  if(jsonInput&&!jsonInput.value&&cfg.canales&&cfg.canales.length>0)jsonInput.value=JSON.stringify(appData.canales,null,2);
   saveInputsToStorage();
 }
 
@@ -323,67 +314,100 @@ function showPlayerMessage(msg,color){
 }
 function hidePlayerMessage(){const d=$('fp_diag');if(d)d.remove();}
 
+/* EMBEDS ESTABLES:
+   El identificador y el hash criptográfico del embed viven en token.json.
+   La URL pública no lleva #k ni depende del token del MPD.
+   La clave derivada permanece estable mientras se mantengan la contraseña
+   maestra, el ID y la versión criptográfica del embed.
+*/
 function embedSlugs(list){
   const used=new Set();
   return list.map(c=>{
-    const b=String(c.slug||c.name||'canal').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g, '')||'canal';
+    const b=String(c.slug||c.name||'canal').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'canal';
     let x=b,n=2;while(used.has(x))x=b+'-'+n++;
     used.add(x);return x;
   });
 }
 const hexOf=u8=>Array.from(u8).map(b=>b.toString(16).padStart(2,'0')).join('');
-const unhex=h=>Uint8Array.from(h.match(/../g).map(x=>parseInt(x,16)));
+const unhex=h=>{
+  if(typeof h!=='string'||!/^(?:[0-9a-f]{2})+$/i.test(h))throw new Error('Hash de embed inválido.');
+  return Uint8Array.from(h.match(/../g).map(x=>parseInt(x,16)));
+};
 const toB64=u8=>{let s='';u8.forEach(b=>s+=String.fromCharCode(b));return btoa(s);};
 const fromB64=b=>Uint8Array.from(atob(b),ch=>ch.charCodeAt(0));
-const EMBED_SALT=new Uint8Array([...SALT_BYTES,...new TextEncoder().encode('embed-v3')]);
+const EMBED_SALT=new Uint8Array([...SALT_BYTES,...new TextEncoder().encode('embed-v4')]);
+
 let embedMaster={pass:'',key:null};
+
 async function getEmbedMaster(pass){
   if(embedMaster.pass===pass&&embedMaster.key)return embedMaster.key;
-  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(await CryptoEngine.sha256(pass)),'PBKDF2',false,['deriveBits']);
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveBits']);
   const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:EMBED_SALT,iterations:KDF_ITER,hash:'SHA-256'},km,256);
   const key=await crypto.subtle.importKey('raw',bits,{name:'HMAC',hash:'SHA-256'},false,['sign']);
   embedMaster={pass,key};
   return key;
 }
-async function embedKeyHex(pass,id,rev){
-  const sig=await crypto.subtle.sign('HMAC',await getEmbedMaster(pass),new TextEncoder().encode('embed:'+id+':'+(Number(rev)||0)));
+
+async function embedKeyHex(pass,id){
+  const sig=await crypto.subtle.sign('HMAC',await getEmbedMaster(pass),new TextEncoder().encode('producciones-el-chini:embed:v4:'+String(id)));
   return hexOf(new Uint8Array(sig));
 }
+
+async function hashEmbedKey(keyHex){
+  return CryptoEngine.sha256('elchini-embed-integrity-v4:'+keyHex);
+}
+
 async function encryptEmbed(obj,keyHex){
-  const key=await crypto.subtle.importKey('raw',unhex(keyHex),'AES-GCM',false,['encrypt']);
+  const key=await crypto.subtle.importKey('raw',unhex(keyHex),{name:'AES-GCM'},false,['encrypt']);
   const iv=crypto.getRandomValues(new Uint8Array(12));
-  const textPayload = JSON.stringify(obj);
-  const padded = textPayload + ' '.repeat((512 - (textPayload.length % 512)) % 512);
-  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(padded));
-  return{iv:toB64(iv),data:toB64(new Uint8Array(ct))};
+  const plain=new TextEncoder().encode(JSON.stringify(obj));
+  const aad=new TextEncoder().encode('elchini-embed-v4');
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad,tagLength:128},key,plain);
+  return{version:4,iv:toB64(iv),data:toB64(new Uint8Array(ct))};
 }
+
 async function decryptEmbed(blob,keyHex){
-  const key=await crypto.subtle.importKey('raw',unhex(keyHex),'AES-GCM',false,['decrypt']);
-  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:fromB64(blob.iv)},key,fromB64(blob.data));
-  return JSON.parse(new TextDecoder().decode(pt).trim());
+  if(!blob||blob.version!==4||!blob.iv||!blob.data)throw new Error('Formato de embed inválido.');
+  const key=await crypto.subtle.importKey('raw',unhex(keyHex),{name:'AES-GCM'},false,['decrypt']);
+  const aad=new TextEncoder().encode('elchini-embed-v4');
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:fromB64(blob.iv),additionalData:aad,tagLength:128},key,fromB64(blob.data));
+  return JSON.parse(new TextDecoder().decode(pt));
 }
+
 async function loadEmbedConfig(id){
-  if(!id)return{error:'Embed sin canal especificado.'};
-  let err='Canal no disponible. Entrá a Admin y publicá la grilla cifrada.';
+  if(!id)return{error:'Embed sin canal. Copiá de nuevo el código desde "Generador de Embeds".'};
+  let err='Canal no disponible. Entrá a Admin y tocá "Publicar JSON Cifrado a GitHub".';
   for(const makeUrl of getRepoConfigSources()){
     try{
       const res=await fetch(makeUrl(),{cache:'no-store'});
       if(!res.ok)continue;
-      const rawJson = await res.json();
-      const pass = getActiveVaultPass();
-      if(!pass) return {error:'Falta configurar la Contraseña Maestra para los embeds.'};
-      
-      const embeds = rawJson.embeds || {};
+      const raw=await res.json();
+      if(raw.version!==4||!raw.embeds||typeof raw.embeds!=='object')continue;
       const sid=String(id).toLowerCase();
-      const blob=Object.prototype.hasOwnProperty.call(embeds,sid)?embeds[sid]:null;
+      const blob=Object.prototype.hasOwnProperty.call(raw.embeds,sid)?raw.embeds[sid]:null;
       if(!blob)continue;
-      
-      const kx=await embedKeyHex(pass, blob.channelId || sid, blob.rev || 0);
-      const d=await decryptEmbed(blob, kx);
-      
+
+      /* La clave/hash está en el JSON; nunca se lee location.hash. */
+      if(!blob.k||!blob.hash)throw new Error('Falta el hash criptográfico del embed.');
+      const expected=await hashEmbedKey(blob.k);
+      if(expected!==blob.hash)throw new Error('La verificación del hash del embed falló.');
+
+      const d=await decryptEmbed(blob,blob.k);
+      if(!d||!d.canal)throw new Error('Configuración de canal inválida.');
+
+      const allow=(d.canal.origins)||[];
+      if(Array.isArray(allow)&&allow.length){
+        let po='';
+        try{po=(location.ancestorOrigins&&location.ancestorOrigins[0])||new URL(document.referrer).origin;}catch(_){}
+        if(!allow.some(o=>String(o).replace(/\/+$/,'')===po))return{error:'Este embed no está autorizado en este sitio.'};
+      }
+
       const cfg=normalizeConfig({baseUrl:d.baseUrl,token:d.token,canales:[d.canal]});
       if(cfg&&cfg.canales.length)return{...cfg,error:''};
-    }catch(e){console.warn('Embed error:',e);err='Error al descifrar el embed. Verificá la Contraseña Maestra.';}
+    }catch(e){
+      console.warn('Embed:',e);
+      err='No se pudo verificar o descifrar el embed. Publicá nuevamente el JSON y comprobá la contraseña maestra.';
+    }
   }
   return{error:err};
 }
@@ -394,9 +418,7 @@ function isLocalBase(u){
 function pagesUrl(repo){const [u,r]=repo.split('/'),h=u.toLowerCase()+'.github.io';return (r||'').toLowerCase()===h?`https://${h}/inicio.html`:`https://${h}/${r}/inicio.html`;}
 function getPublicBase(){
   let href=location.href.split('?')[0].split('#')[0];
-  if(isLocalBase(href)||href.includes('codebeautify.org')||!href.endsWith('inicio.html')){
-    return pagesUrl(getActiveRepo());
-  }
+  if(isLocalBase(href)||href.includes('codebeautify.org')||!href.endsWith('inicio.html'))return pagesUrl(getActiveRepo());
   return href;
 }
 
@@ -418,16 +440,16 @@ window.addEventListener('DOMContentLoaded',async()=>{
 
   restoreInputsFromStorage();
   appData.canales=getActiveChannels();
-  if($('ch-count')) $('ch-count').textContent=appData.canales.length;
+  if($('ch-count'))$('ch-count').textContent=appData.canales.length;
 
-  const config=await loadConfigDataFromVault();
+  const config=await loadConfigData();
   if(!config.error){
     applyConfigToInputs(config);
     appData.canales=getActiveChannels();
-    if($('ch-count')) $('ch-count').textContent=appData.canales.length;
+    if($('ch-count'))$('ch-count').textContent=appData.canales.length;
   }
   const st=$('admin-status');
-  if(st) st.textContent=config.error?'⚠ '+config.error:'✓ Bóveda cargada y descifrada con éxito';
+  if(st)st.textContent=config.error?'⚠ '+config.error:'✓ Configuración cargada correctamente';
   hidePlayerMessage();
   await initShakaPlayer();
 });
@@ -449,9 +471,8 @@ window.publishDirectToGitHub=async function(){
   saveInputsToStorage();
   const pat=getActiveGitHubToken(),repo=getActiveRepo(),pass=getActiveVaultPass(),st=$('admin-status');
   if(!pat){alert('Falta el GitHub Personal Access Token (PAT).');return;}
-  if(!repo){alert('Falta el repositorio.');return;}
+  if(!repo||!repo.includes('/')){alert('El repositorio debe tener el formato usuario/repo.');return;}
   if(!pass){alert('Falta la Contraseña Maestra.');return;}
-  if(pass.length<12&&!confirm('La Contraseña Maestra tiene menos de 12 caracteres y es lo único que protege el JSON. ¿Publicar igual?'))return;
 
   let channelsList;
   try{
@@ -459,6 +480,7 @@ window.publishDirectToGitHub=async function(){
     const bad=channelsList.find(c=>!String(c.path||c.url||c.ruta||'').trim());
     if(bad)throw new Error(`El canal "${bad.name||bad.id}" no tiene path.`);
   }catch(err){alert('Error en el formato del JSON de canales: '+err.message);return;}
+
   $('vault-json-input').value=JSON.stringify(channelsList,null,2);
   saveInputsToStorage();
   if($('ch-count'))$('ch-count').textContent=channelsList.length;
@@ -469,41 +491,79 @@ window.publishDirectToGitHub=async function(){
 
   publishing=true;
   try{
-    if(st) st.textContent='Cifrando configuración con AES-256-GCM y generando embeds...';
-    const encObj=JSON.parse(await CryptoEngine.encryptJson({baseUrl:baseUrlVal,token:tokenVal,canales:channelsList},pass));
-    encObj.v=4;
-    encObj.embeds={};
+    if(st)st.textContent='Cifrando configuración y embeds...';
+
+    /* La configuración general sigue cifrada con AES-GCM y PBKDF2. */
+    const encryptedConfig=JSON.parse(await CryptoEngine.encryptJson({
+      baseUrl:baseUrlVal,
+      token:tokenVal,
+      canales:channelsList
+    },pass));
+
+    /* El hash y el cifrado de cada embed se guardan dentro del JSON.
+       La clave se deriva del ID estable, no del token MPD ni de c.rev. */
+    const embeds={};
     const slugs=embedSlugs(channelsList);
-    for(const [i,c] of channelsList.entries()){
-      const n=normalizeConfig({baseUrl:baseUrlVal,token:tokenVal,canales:[c]});
-      const kx=await embedKeyHex(pass,c.id,c.rev);
-      encObj.embeds[slugs[i]]={channelId:c.id,rev:c.rev||0,k:kx,...await encryptEmbed({baseUrl:baseUrlVal,token:tokenVal,canal:n.canales[0]},kx)};
+
+    for(let i=0;i<channelsList.length;i++){
+      const c=channelsList[i];
+      const normalized=normalizeConfig({baseUrl:baseUrlVal,token:tokenVal,canales:[c]});
+      const canal=normalized.canales[0];
+      const k=await embedKeyHex(pass,c.id);
+      const hash=await hashEmbedKey(k);
+      const blob=await encryptEmbed({
+        baseUrl:baseUrlVal,
+        token:tokenVal,
+        canal
+      },k);
+      embeds[slugs[i]]={...blob,k,hash};
     }
-    const encrypted=JSON.stringify(encObj);
+
+    /* Se mantiene la forma exterior que consume el cargador:
+       encrypted/payload para la bóveda y embeds para los iframes. */
+    const finalJSON={
+      ...encryptedConfig,
+      version:4,
+      embeds
+    };
 
     let sha='';
     const g=await fetch(apiUrl+'?t='+Date.now(),{cache:'no-store',headers});
-    if(g.ok) sha=(await g.json()).sha;
-    else if(g.status!==404) throw new Error('No se pudo leer token.json (HTTP '+g.status+'). Revisá el PAT y el repo.');
+    if(g.ok)sha=(await g.json()).sha;
+    else if(g.status!==404)throw new Error('No se pudo leer token.json (HTTP '+g.status+'). Revisá el PAT y el repositorio.');
 
-    if(st) st.textContent='Enviando a GitHub...';
-    const body={message:'Update token.json with secure autonomous embeds', content:btoa(unescape(encodeURIComponent(encrypted)))};
-    if(sha) body.sha=sha;
+    if(st)st.textContent='Enviando a GitHub...';
+    const body={
+      message:'Update encrypted OTT vault and stable channel embeds',
+      content:btoa(unescape(encodeURIComponent(JSON.stringify(finalJSON))))
+    };
+    if(sha)body.sha=sha;
 
-    const put=await fetch(apiUrl,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!put.ok) throw new Error((await put.json()).message||'Error API GitHub');
+    const put=await fetch(apiUrl,{
+      method:'PUT',
+      headers:{...headers,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
 
-    if(st) st.textContent='¡Publicado y cifrado con éxito!';
-    alert('¡token.json publicado! Bóveda blindada y actualizada en GitHub Pages.');
+    if(!put.ok){
+      let detail='Error API GitHub';
+      try{detail=(await put.json()).message||detail;}catch(_){}
+      throw new Error(detail);
+    }
+
+    if(st)st.textContent='¡Publicado y cifrado con éxito!';
+    alert('¡token.json publicado! Los enlaces de los embeds permanecen estables al renovar el token del MPD. GitHub Pages puede tardar unos minutos en actualizarse.');
   }catch(e){
-    if(st) st.textContent='Error al publicar';
+    if(st)st.textContent='Error al publicar';
     alert('Fallo al publicar: '+e.message);
-  }finally{publishing=false;}
+  }finally{
+    publishing=false;
+  }
 };
 
 function streamKey(){
   const canales=getActiveChannels(),c=canales[currentIdx]||canales[0]||{};
-  return [getActiveBaseUrl(),getActiveGlobalToken(),c.path,c.clearkey].join('|');
+  return[getActiveBaseUrl(),getActiveGlobalToken(),c.path,c.clearkey].join('|');
 }
 
 window.switchTab=async function(tab){
@@ -515,7 +575,7 @@ window.switchTab=async function(tab){
   content.classList.add('active');
   btn.classList.add('active');
   const canales=getActiveChannels();
-  if($('ch-count')) $('ch-count').textContent=canales.length;
+  if($('ch-count'))$('ch-count').textContent=canales.length;
   if(tab!=='player')video.pause();
   if(tab==='channels')renderChannelsTable();
   if(tab==='embeds')renderEmbedsGallery();
@@ -574,10 +634,7 @@ function buildQualityMenu(){
 
 async function loadStream(){
   const canales=getActiveChannels();
-  if(!canales.length){
-    showPlayerMessage('No hay canales cargados. Verifique el Editor JSON en Admin.');
-    return;
-  }
+  if(!canales.length){showPlayerMessage('No hay canales cargados. Verifique el Editor JSON en Admin.');return;}
   const base=getActiveBaseUrl();
   if(!base){showPlayerMessage('No se encontró Base URL en el Panel de Admin.');return;}
 
@@ -596,7 +653,7 @@ async function loadStream(){
   let finalUrl=base.replace(/\/+$/,'')+(path.startsWith('/')?path:'/'+path);
   const tk=extractToken(c.token||'')||getActiveGlobalToken();
   const qp=[];
-  if(tk) qp.push(`token=${encodeURIComponent(tk)}`);
+  if(tk)qp.push(`token=${encodeURIComponent(tk)}`);
   qp.push('dvr_window_length=60');
   finalUrl+='?'+qp.join('&');
 
@@ -636,17 +693,25 @@ async function initShakaPlayer(){
     });
     player.addEventListener('trackschanged',buildQualityMenu);
   }
-  if(getActiveChannels().length>0) await loadStream();
+  if(getActiveChannels().length>0)await loadStream();
 }
 
-playBtn.onclick=()=>{if(video.paused){video.play();}else{video.pause();}};
+playBtn.onclick=()=>{if(video.paused)video.play();else video.pause();};
 video.onplay=()=>{icoPlay.style.display='none';icoPause.style.display='block';showUI();};
 video.onpause=()=>{icoPlay.style.display='block';icoPause.style.display='none';box.classList.remove('hide-ui');};
 video.ontimeupdate=()=>{bar.max=video.duration||0;bar.value=video.currentTime;};
 bar.oninput=()=>video.currentTime=bar.value;
 muteBtn.onclick=()=>video.muted=!video.muted;
 
-function toggleFS(){if(!document.fullscreenElement)box.requestFullscreen();else document.exitFullscreen();}
+function toggleFS(){
+  if(!document.fullscreenElement){
+    const result=box.requestFullscreen();
+    if(result&&result.catch)result.catch(()=>{});
+  }else{
+    const result=document.exitFullscreen();
+    if(result&&result.catch)result.catch(()=>{});
+  }
+}
 fsBtn.onclick=toggleFS;
 video.ondblclick=toggleFS;
 let lastTap=0;
@@ -677,29 +742,38 @@ box.addEventListener('mousemove',showUI);
 box.addEventListener('touchstart',showUI);
 box.addEventListener('click',showUI);
 
-let gallerySeq=0;
 async function renderEmbedsGallery(){
   const seq=++gallerySeq;
   saveInputsToStorage();
   const q=($('search-embeds-box')?$('search-embeds-box').value:'').toLowerCase();
   const container=$('embeds-grid-container');
   if(!container)return;
-  
+
   const ed=$('vault-json-input');
-  if(ed&&ed.value.trim()){try{const pretty=JSON.stringify(parseChannelsText(ed.value.trim()),null,2);if(ed.value!==pretty){ed.value=pretty;saveInputsToStorage();}}catch(_){}}
+  if(ed&&ed.value.trim()){
+    try{
+      const pretty=JSON.stringify(parseChannelsText(ed.value.trim()),null,2);
+      if(ed.value!==pretty){ed.value=pretty;saveInputsToStorage();}
+    }catch(_){}
+  }
+
   const canales=getActiveChannels();
   const filtered=canales.filter(c=>String(c.name).toLowerCase().includes(q));
   if(!filtered.length){
     container.innerHTML='<div class="col-span-2 text-center py-10 text-gray-500 text-sm">No hay canales cargados.</div>';
     return;
   }
+
   const base=getPublicBase();
   const slugs=embedSlugs(canales);
   const cards=[];
+
   for(const c of filtered){
     const id=slugs[canales.indexOf(c)];
+    /* El hash NO va en la URL. Está guardado en el JSON publicado. */
     const src=`${base}?embed_ch=${encodeURIComponent(id)}`;
-    const code=`<div style="position:relative; width:100%; aspect-ratio:16/9; background:#000;"><iframe src="${src}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write" allowfullscreen title="${escapeHTML(c.name)}"></iframe></div>`;
+    const code=`<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;"><iframe src="${src}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="autoplay;encrypted-media;fullscreen;picture-in-picture;clipboard-write" allowfullscreen title="${escapeHTML(c.name)}"></iframe></div>`;
+
     cards.push(`<div class="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3 shadow-xl">
       <div class="flex justify-between items-center gap-2">
         <h3 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-code text-sky-400 mr-1.5"></i> ${escapeHTML(c.name)}</h3>
@@ -707,15 +781,21 @@ async function renderEmbedsGallery(){
       </div>
       <div class="flex gap-2">
         <input type="text" readonly value="${escapeHTML(code)}" class="bg-gray-900 border border-gray-800 text-[10px] font-mono text-gray-400 px-2 py-1 rounded flex-1 min-w-0 select-all">
-        <button type="button" data-copy-embed class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white text-xs rounded transition font-medium cursor-pointer"><i class="fa-solid fa-copy"></i> Copiar</button><a href="${escapeHTML(src)}" target="_blank" rel="noopener" class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-sky-400 text-xs rounded border border-gray-700 font-medium">Probar</a>
+        <button type="button" data-copy-embed class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white text-xs rounded transition font-medium cursor-pointer"><i class="fa-solid fa-copy"></i> Copiar</button>
+        <a href="${escapeHTML(src)}" target="_blank" rel="noopener" class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-sky-400 text-xs rounded border border-gray-700 font-medium">Probar</a>
       </div></div>`);
   }
+
   if(seq!==gallerySeq)return;
   container.innerHTML=cards.join('');
   container.querySelectorAll('[data-copy-embed]').forEach(button=>{
     button.onclick=async()=>{
       const input=button.parentElement.querySelector('input');
-      try{await navigator.clipboard.writeText(input.value);button.innerHTML='<i class="fa-solid fa-check"></i> Copiado';setTimeout(()=>{button.innerHTML='<i class="fa-solid fa-copy"></i> Copiar';},1500);}catch(_){input.focus();input.select();}
+      try{
+        await navigator.clipboard.writeText(input.value);
+        button.innerHTML='<i class="fa-solid fa-check"></i> Copiado';
+        setTimeout(()=>{button.innerHTML='<i class="fa-solid fa-copy"></i> Copiar';},1500);
+      }catch(_){input.focus();input.select();}
     };
   });
 }
