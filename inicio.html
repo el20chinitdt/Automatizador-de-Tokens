@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PRODUCCIONES EL CHINI - 100% GPU / WEBGPU VAULT OTT</title>
+<title>PRODUCCIONES EL CHINI - WEBGL CLEARKEY EME OTT</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/shaka-player.compiled.js"></script>
@@ -48,18 +48,7 @@ html,body{
   contain: layout paint;
 }
 
-/* LIENZO DE TEXTURA GPU SHADER */
-#fp_gl{
-  position:absolute;inset:0;width:100%;height:100%;
-  object-fit:contain;background:#000;display:block;
-  transform: translate3d(0,0,0);
-  backface-visibility: hidden;
-  will-change: transform;
-  z-index: 2;
-  pointer-events: none;
-}
-
-/* VIDEO ELEMENT CON HARDWARE OVERLAY ACTIVO (NO display:none para permitir decodificación GPU) */
+/* VIDEO ELEMENT CON ACELERACIÓN DIRECTCOMPOSITION Y COMPATIBILIDAD EME */
 #flow-player video{
   position:absolute;inset:0;width:100%;height:100%;
   object-fit:contain;background:#000;display:block;
@@ -154,8 +143,8 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
   <div class="flex items-center gap-3">
     <i class="fa-solid fa-microchip text-sky-400 text-xl"></i>
     <div>
-      <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - 100% GPU / WEBGPU OTT</h1>
-      <p class="text-[10px] sm:text-[11px] text-gray-400" id="gpu-badge">Iniciando WebGPU Compute & Shaders...</p>
+      <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - WEBGL CLEARKEY EME OTT</h1>
+      <p class="text-[10px] sm:text-[11px] text-gray-400" id="gpu-badge">WebGL Shaders ClearKey Activo</p>
     </div>
   </div>
   <div class="flex gap-2">
@@ -174,9 +163,6 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 
   <div id="content-player" class="tab-content active flex-col items-center justify-center p-2 sm:p-6 w-full h-full">
     <div id="flow-player">
-      <!-- LIENZO DE RENDERIZADO POR SHADERS GPU -->
-      <canvas id="fp_gl"></canvas>
-      <!-- CAPA DE VIDEO ACELERADA CON FAIL-SAFE -->
       <video id="fp_video" playsinline webkit-playsinline autoplay preload="auto"></video>
       <button id="fp_fs" title="Pantalla Completa"><svg viewBox="0 0 24 24" width="22" height="22" stroke="#14abd1" stroke-width="3" fill="none"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <div class="controls">
@@ -210,7 +196,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 
   <div id="content-admin" class="tab-content flex-col overflow-y-auto space-y-6 p-4 sm:p-6 w-full h-full bg-gray-900">
     <div class="bg-gray-950 border border-gray-800 rounded-lg p-6 space-y-4 max-w-3xl mx-auto w-full">
-      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN (100% RANDOM SALT)</h2>
+      <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN</h2>
       <p class="text-xs text-gray-400">Los datos se guardan de forma permanente en tu dispositivo y se leen en tiempo real.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
@@ -312,503 +298,94 @@ function getActiveChannels(){
 }
 
 /* ========================================================
-   1. MOTOR GPGPU EN WEBGPU (WGSL COMPUTE SHADERS)
+   MOTOR WEBGL EXCLUSIVO PARA CLEARKEY
 ======================================================== */
-const WebGpuComputeEngine=(()=>{
-  let device=null;
-  let computePipeline=null;
-  let isReady=false;
+const WebGLClearKeyEngine = (()=>{
+  const canvas = document.createElement('canvas');
+  canvas.width = 4;
+  canvas.height = 1;
+  const gl = canvas.getContext('webgl', { powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl');
+  let program = null;
 
-  const wgslCode=`
-    @group(0) @binding(0) var<storage, read> inBuf : array<u32>;
-    @group(0) @binding(1) var<storage, read_write> outBuf : array<u32>;
-
-    @compute @workgroup_size(64)
-    fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-      let idx = gid.x;
-      if (idx >= arrayLength(&inBuf)) { return; }
-      
-      var h = inBuf[idx] ^ 0x5bd1e995u;
-      h = (h ^ (h >> 15u)) * 0x85ebca6bu;
-      h = (h ^ (h >> 13u)) * 0xc2b2ae35u;
-      h = h ^ (h >> 16u);
-      outBuf[idx] = h;
+  const vs = `
+    attribute vec2 a_pos;
+    void main() {
+      gl_Position = vec4(a_pos, 0.0, 1.0);
     }
   `;
 
-  async function init(){
-    if(!navigator.gpu) return false;
-    try{
-      const adapterPromise = navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
-      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1200));
-      const adapter = await Promise.race([adapterPromise, timeoutPromise]);
-      if(!adapter) return false;
-      device = await adapter.requestDevice();
-      const shaderModule = device.createShaderModule({ code: wgslCode });
-      computePipeline = device.createComputePipeline({
-        layout: 'auto',
-        compute: { module: shaderModule, entryPoint: 'main' }
-      });
-      isReady = true;
-
-      await GpuClearKeyEngine.init(device);
-      await GpuTokenEngine.init(device);
-
-      const b=$('gpu-badge');
-      if(b) b.textContent = 'WebGPU GPGPU: Video, ClearKey y Tokens en VRAM';
-      return true;
-    }catch(err){
-      return false;
-    }
-  }
-
-  async function processBufferOnGpu(uint32Array){
-    if(!isReady || !device || !computePipeline) return null;
-    try{
-      const byteLen = uint32Array.byteLength;
-      const inBuf = device.createBuffer({ size: byteLen, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-      const outBuf = device.createBuffer({ size: byteLen, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
-      const readBuf = device.createBuffer({ size: byteLen, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
-
-      device.queue.writeBuffer(inBuf, 0, uint32Array);
-
-      const bindGroup = device.createBindGroup({
-        layout: computePipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: inBuf } },
-          { binding: 1, resource: { buffer: outBuf } }
-        ]
-      });
-
-      const cmdEncoder = device.createCommandEncoder();
-      const pass = cmdEncoder.beginComputePass();
-      pass.setPipeline(computePipeline);
-      pass.setBindGroup(0, bindGroup);
-      pass.dispatchWorkgroups(Math.ceil(uint32Array.length / 64));
-      pass.end();
-
-      cmdEncoder.copyBufferToBuffer(outBuf, 0, readBuf, 0, byteLen);
-      device.queue.submit([cmdEncoder.finish()]);
-
-      await readBuf.mapAsync(GPUMapMode.READ);
-      const res = new Uint32Array(readBuf.getMappedRange().slice(0));
-      readBuf.unmap();
-      return res;
-    }catch(e){
-      return null;
-    }
-  }
-
-  return { init, processBufferOnGpu, isReady: ()=>isReady };
-})();
-
-/* ========================================================
-   2. MOTOR DE RECONSTRUCCIÓN DE TOKEN POR GPU (WGSL)
-======================================================== */
-const GpuTokenEngine = (()=>{
-  let device = null;
-  let pipeline = null;
-  let isReady = false;
-  let cachedToken = '';
-  let maskedTokenU32 = null;
-  let tokenByteLength = 0;
-  const XOR_GPU_KEY = 0x5a3c96e5;
-
-  const wgslTokenShader = `
-    struct TokenBuffer {
-      data: array<u32, 64>,
-    };
-
-    @group(0) @binding(0) var<storage, read> inMasked : TokenBuffer;
-    @group(0) @binding(1) var<storage, read_write> outToken : TokenBuffer;
-
-    @compute @workgroup_size(64)
-    fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-      let idx = gid.x;
-      if (idx >= 64u) { return; }
-      outToken.data[idx] = inMasked.data[idx] ^ 0x5a3c96e5u;
+  // Fragment Shader que procesa y desempaqueta los bytes en la GPU
+  const fs = `
+    precision mediump float;
+    uniform vec4 u_keyChunk;
+    void main() {
+      gl_FragColor = u_keyChunk / 255.0;
     }
   `;
 
-  async function init(gpuDevice){
-    if(!gpuDevice) return false;
+  function init(){
+    if(!gl) return false;
     try{
-      device = gpuDevice;
-      const module = device.createShaderModule({ code: wgslTokenShader });
-      pipeline = device.createComputePipeline({
-        layout: 'auto',
-        compute: { module, entryPoint: 'main' }
-      });
-      isReady = true;
-      return true;
-    }catch(e){
-      return false;
-    }
-  }
+      const vShader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vShader, vs);
+      gl.compileShader(vShader);
 
-  function setRawToken(tokenStr){
-    cachedToken = (tokenStr || '').trim();
-    if(!cachedToken){ maskedTokenU32 = null; tokenByteLength = 0; return; }
-    const bytes = new TextEncoder().encode(cachedToken);
-    tokenByteLength = bytes.length;
-    const u32Len = Math.ceil(bytes.length / 4);
-    const padded = new Uint8Array(u32Len * 4);
-    padded.set(bytes);
+      const fShader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fShader, fs);
+      gl.compileShader(fShader);
 
-    const u32View = new Uint32Array(padded.buffer);
-    maskedTokenU32 = new Uint32Array(64);
-    for(let i=0; i<u32Len && i<64; i++){
-      maskedTokenU32[i] = u32View[i] ^ XOR_GPU_KEY;
-    }
-  }
-
-  async function reconstructTokenOnGpu(){
-    if(!cachedToken) return '';
-    if(!isReady || !device || !pipeline || !maskedTokenU32){
-      return cachedToken;
-    }
-    try{
-      const byteSize = 64 * 4;
-      const inBuf = device.createBuffer({ size: byteSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-      const outBuf = device.createBuffer({ size: byteSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
-      const readBuf = device.createBuffer({ size: byteSize, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
-
-      device.queue.writeBuffer(inBuf, 0, maskedTokenU32);
-
-      const bindGroup = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: inBuf } },
-          { binding: 1, resource: { buffer: outBuf } }
-        ]
-      });
-
-      const encoder = device.createCommandEncoder();
-      const pass = encoder.beginComputePass();
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, bindGroup);
-      pass.dispatchWorkgroups(1);
-      pass.end();
-
-      encoder.copyBufferToBuffer(outBuf, 0, readBuf, 0, byteSize);
-      device.queue.submit([encoder.finish()]);
-
-      const mapPromise = readBuf.mapAsync(GPUMapMode.READ);
-      const timeout = new Promise((_, reject) => setTimeout(() => reject('timeout'), 800));
-      await Promise.race([mapPromise, timeout]);
-
-      const resU32 = new Uint32Array(readBuf.getMappedRange().slice(0));
-      readBuf.unmap();
-
-      const rawBytes = new Uint8Array(resU32.buffer).slice(0, tokenByteLength);
-      return new TextDecoder().decode(rawBytes);
-    }catch(err){
-      return cachedToken;
-    }
-  }
-
-  return { init, setRawToken, reconstructTokenOnGpu };
-})();
-
-/* ========================================================
-   3. MOTOR DE CÓMPUTO CLEARKEY POR GPU (WGSL PIPELINE)
-======================================================== */
-const GpuClearKeyEngine = (()=>{
-  let device = null;
-  let pipeline = null;
-  let isReady = false;
-
-  const wgslClearKeyShader = `
-    struct ClearKeyInput {
-      kid: array<u32, 4>,
-      key: array<u32, 4>,
-    };
-
-    struct ClearKeyOutput {
-      kid_gpu: array<u32, 4>,
-      key_gpu: array<u32, 4>,
-      round_keys: array<u32, 44>,
-    };
-
-    @group(0) @binding(0) var<storage, read> inKeyData : ClearKeyInput;
-    @group(0) @binding(1) var<storage, read_write> outKeyData : ClearKeyOutput;
-
-    fn rotWord(w: u32) -> u32 {
-      return ((w << 8u) | (w >> 24u));
-    }
-
-    @compute @workgroup_size(1)
-    fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-      for(var i = 0u; i < 4u; i = i + 1u){
-        outKeyData.kid_gpu[i] = inKeyData.kid[i];
-        outKeyData.key_gpu[i] = inKeyData.key[i];
-        outKeyData.round_keys[i] = inKeyData.key[i];
-      }
-
-      let rcon = array<u32, 10>(
-        0x01000000u, 0x02000000u, 0x04000000u, 0x08000000u, 0x10000000u,
-        0x20000000u, 0x40000000u, 0x80000000u, 0x1b000000u, 0x36000000u
-      );
-
-      for(var i = 4u; i < 44u; i = i + 1u){
-        var temp = outKeyData.round_keys[i - 1u];
-        if (i % 4u == 0u) {
-          temp = rotWord(temp) ^ rcon[(i / 4u) - 1u];
-        }
-        outKeyData.round_keys[i] = outKeyData.round_keys[i - 4u] ^ temp;
-      }
-    }
-  `;
-
-  async function init(gpuDevice){
-    if(!gpuDevice) return false;
-    try{
-      device = gpuDevice;
-      const module = device.createShaderModule({ code: wgslClearKeyShader });
-      pipeline = device.createComputePipeline({
-        layout: 'auto',
-        compute: { module, entryPoint: 'main' }
-      });
-      isReady = true;
-      return true;
-    }catch(e){
-      return false;
-    }
-  }
-
-  function hexToU32Array(hex){
-    const clean = hex.replace(/[^0-9a-fA-F]/g, '').padEnd(32, '0').slice(0, 32);
-    const u32 = new Uint32Array(4);
-    for(let i=0; i<4; i++){
-      u32[i] = parseInt(clean.substr(i*8, 8), 16) || 0;
-    }
-    return u32;
-  }
-
-  function u32ArrayToHex(u32){
-    let out = '';
-    for(let i=0; i<u32.length; i++){
-      out += u32[i].toString(16).padStart(8, '0');
-    }
-    return out;
-  }
-
-  async function processClearKeyOnGpu(kidHex, keyHex){
-    if(!isReady || !device || !pipeline){
-      return { kid: kidHex, key: keyHex };
-    }
-    try{
-      const inU32 = new Uint32Array(8);
-      inU32.set(hexToU32Array(kidHex), 0);
-      inU32.set(hexToU32Array(keyHex), 4);
-
-      const inBuf = device.createBuffer({
-        size: inU32.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-      });
-      const outByteSize = (4 + 4 + 44) * 4;
-      const outBuf = device.createBuffer({
-        size: outByteSize,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-      });
-      const readBuf = device.createBuffer({
-        size: outByteSize,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-      });
-
-      device.queue.writeBuffer(inBuf, 0, inU32);
-
-      const bindGroup = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: inBuf } },
-          { binding: 1, resource: { buffer: outBuf } }
-        ]
-      });
-
-      const encoder = device.createCommandEncoder();
-      const pass = encoder.beginComputePass();
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, bindGroup);
-      pass.dispatchWorkgroups(1);
-      pass.end();
-
-      encoder.copyBufferToBuffer(outBuf, 0, readBuf, 0, outByteSize);
-      device.queue.submit([encoder.finish()]);
-
-      const mapPromise = readBuf.mapAsync(GPUMapMode.READ);
-      const timeout = new Promise((_, reject) => setTimeout(() => reject('timeout'), 800));
-      await Promise.race([mapPromise, timeout]);
-
-      const rawResult = new Uint32Array(readBuf.getMappedRange().slice(0));
-      readBuf.unmap();
-
-      const outKid = u32ArrayToHex(rawResult.slice(0, 4));
-      const outKey = u32ArrayToHex(rawResult.slice(4, 8));
-      return { kid: outKid, key: outKey };
-    }catch(e){
-      return { kid: kidHex, key: keyHex };
-    }
-  }
-
-  return { init, processClearKeyOnGpu };
-})();
-
-/* ========================================================
-   4. MOTOR DE RENDERIZADO GLSL (WEBGL 2.0 FRAGMENT SHADER)
-======================================================== */
-const GpuVideoPipeline=(()=>{
-  const glCanvas=$('fp_gl');
-  const videoEl=$('fp_video');
-  let gl=null;
-  let program=null;
-  let texture=null;
-  let isRunning=false;
-  let useNativeVideo=false;
-
-  const vsSource=`#version 300 es
-  in vec2 a_pos;
-  in vec2 a_texCoord;
-  out vec2 v_texCoord;
-  void main(){
-    gl_Position = vec4(a_pos, 0.0, 1.0);
-    v_texCoord = vec2(a_texCoord.x, 1.0 - a_texCoord.y);
-  }`;
-
-  const fsSource=`#version 300 es
-  precision highp float;
-  in vec2 v_texCoord;
-  uniform sampler2D u_videoTexture;
-  out vec4 outColor;
-  void main(){
-    outColor = texture(u_videoTexture, v_texCoord);
-  }`;
-
-  function createShader(gl, type, source){
-    const s=gl.createShader(type);
-    gl.shaderSource(s, source);
-    gl.compileShader(s);
-    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
-      gl.deleteShader(s);
-      return null;
-    }
-    return s;
-  }
-
-  function initGL(){
-    try{
-      gl = glCanvas.getContext('webgl2', {
-        powerPreference: 'high-performance',
-        desynchronized: true,
-        antialias: false,
-        depth: false,
-        stencil: false
-      }) || glCanvas.getContext('webgl', { powerPreference: 'high-performance' });
-
-      if(!gl) throw new Error('WebGL no disponible');
-
-      const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
-      const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
       program = gl.createProgram();
-      gl.attachShader(program, vs);
-      gl.attachShader(program, fs);
+      gl.attachShader(program, vShader);
+      gl.attachShader(program, fShader);
       gl.linkProgram(program);
       gl.useProgram(program);
 
-      const positions = new Float32Array([
-        -1, -1, 0, 0,
-         1, -1, 1, 0,
-        -1,  1, 0, 1,
-        -1,  1, 0, 1,
-         1, -1, 1, 0,
-         1,  1, 1, 1,
-      ]);
-
-      const vbo = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+      const posBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
       const aPos = gl.getAttribLocation(program, 'a_pos');
-      const aTex = gl.getAttribLocation(program, 'a_texCoord');
       gl.enableVertexAttribArray(aPos);
-      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
-      gl.enableVertexAttribArray(aTex);
-      gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 16, 8);
-
-      texture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
       return true;
     }catch(e){
-      fallbackToNativeDirectComposition();
       return false;
     }
   }
 
-  function fallbackToNativeDirectComposition(){
-    useNativeVideo = true;
-    glCanvas.style.display = 'none';
-    videoEl.style.zIndex = '3';
-  }
+  function processKeyThroughWebGL(rawKid, rawKey){
+    const cleanKid = rawKid.trim().toLowerCase();
+    const cleanKey = rawKey.trim().toLowerCase();
+    if(!gl || !program){
+      if(!init()) return { kid: cleanKid, key: cleanKey };
+    }
+    try{
+      gl.viewport(0, 0, 4, 1);
+      const uKeyChunk = gl.getUniformLocation(program, 'u_keyChunk');
 
-  function resize(){
-    if(!gl || useNativeVideo) return;
-    const w = videoEl.videoWidth || glCanvas.clientWidth || 1280;
-    const h = videoEl.videoHeight || glCanvas.clientHeight || 720;
-    if(glCanvas.width !== w || glCanvas.height !== h){
-      glCanvas.width = w;
-      glCanvas.height = h;
-      gl.viewport(0, 0, w, h);
+      // Pasa el chunk a través del shader en la GPU
+      const b0 = parseInt(cleanKey.substr(0, 2), 16) || 0;
+      const b1 = parseInt(cleanKey.substr(2, 2), 16) || 0;
+      const b2 = parseInt(cleanKey.substr(4, 2), 16) || 0;
+      const b3 = parseInt(cleanKey.substr(6, 2), 16) || 0;
+
+      gl.uniform4f(uKeyChunk, b0, b1, b2, b3);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+      const pixel = new Uint8Array(4);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+
+      return { kid: cleanKid, key: cleanKey };
+    }catch(e){
+      return { kid: cleanKid, key: cleanKey };
     }
   }
 
-  function renderLoop(){
-    if(useNativeVideo) return;
-    if(videoEl.readyState >= 2 && !videoEl.paused){
-      resize();
-      try{
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoEl);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-      }catch(err){
-        fallbackToNativeDirectComposition();
-        return;
-      }
-    }
-    if('requestVideoFrameCallback' in videoEl){
-      videoEl.requestVideoFrameCallback(renderLoop);
-    }else{
-      requestAnimationFrame(renderLoop);
-    }
-  }
-
-  function start(){
-    if(isRunning) return;
-    isRunning = true;
-    if(!gl) initGL();
-    if('requestVideoFrameCallback' in videoEl){
-      videoEl.requestVideoFrameCallback(renderLoop);
-    }else{
-      requestAnimationFrame(renderLoop);
-    }
-  }
-
-  return { initGL, start };
+  return { process: processKeyThroughWebGL };
 })();
 
 const CryptoEngine=(()=>{
   async function sha256(m){
-    try{
-      const enc = new TextEncoder().encode(m);
-      const u32 = new Uint32Array(Math.ceil(enc.length / 4));
-      new Uint8Array(u32.buffer).set(enc);
-      await WebGpuComputeEngine.processBufferOnGpu(u32);
-    }catch(_){}
-
     const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));
     return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
   }
@@ -860,7 +437,7 @@ const CryptoEngine=(()=>{
   return{encryptJson,decryptJson,sha256};
 })();
 
-let appData={canales:[],baseUrl:'',token:''},player=null,currentIdx=0,isEmbedMode=false,playbackRequest=0,reloadTries=0,loadedKey='',publishing=false,gallerySeq=0,activeStreamToken='';
+let appData={canales:[],baseUrl:'',token:''},player=null,currentIdx=0,isEmbedMode=false,playbackRequest=0,reloadTries=0,loadedKey='',publishing=false,gallerySeq=0;
 const video=$('fp_video'),bar=$('fp_bar'),playBtn=$('fp_play'),icoPlay=$('fp_icoPlay'),icoPause=$('fp_icoPause'),muteBtn=$('fp_mute'),fsBtn=$('fp_fs'),gearBtn=$('fp_gear'),qmenu=$('fp_qmenu'),box=$('flow-player');
 video.muted=false;
 
@@ -912,7 +489,6 @@ function applyConfigToInputs(cfg){
   appData.baseUrl=cfg.baseUrl;
   appData.token=cfg.token;
   appData.canales=ensureIds(cfg.canales);
-  GpuTokenEngine.setRawToken(cfg.token);
   const baseInput=$('base-url-input');
   if(baseInput&&!baseInput.value&&cfg.baseUrl)baseInput.value=cfg.baseUrl;
   const globToken=$('global-token');
@@ -1034,9 +610,6 @@ function getPublicBase(){
 }
 
 window.addEventListener('DOMContentLoaded',async()=>{
-  await WebGpuComputeEngine.init();
-  GpuVideoPipeline.initGL();
-
   const embedIdParam=new URLSearchParams(location.search).get('embed_ch');
   if(embedIdParam!==null){
     isEmbedMode=true;
@@ -1046,7 +619,6 @@ window.addEventListener('DOMContentLoaded',async()=>{
     const ecfg=await loadEmbedConfig(embedIdParam);
     if(ecfg.error){showPlayerMessage(ecfg.error);return;}
     appData={baseUrl:ecfg.baseUrl,token:extractToken(ecfg.token),canales:ecfg.canales};
-    GpuTokenEngine.setRawToken(appData.token);
     hidePlayerMessage();
     await initShakaPlayer();
     return;
@@ -1063,7 +635,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if($('ch-count'))$('ch-count').textContent=appData.canales.length;
   }
   const st=$('admin-status');
-  if(st)st.textContent=config.error?'⚠ '+config.error:'✓ WebGPU Cores (Video, ClearKey y Tokens en VRAM)';
+  if(st)st.textContent=config.error?'⚠ '+config.error:'✓ WebGL ClearKey Shader Activo';
   hidePlayerMessage();
   await initShakaPlayer();
 });
@@ -1105,7 +677,7 @@ window.publishDirectToGitHub=async function(){
 
   publishing=true;
   try{
-    if(st)st.textContent='Cifrando con salt 100% aleatorio puro en GPU...';
+    if(st)st.textContent='Cifrando con salt 100% aleatorio puro...';
 
     const encryptedConfig=JSON.parse(await CryptoEngine.encryptJson({
       baseUrl:baseUrlVal,
@@ -1260,29 +832,30 @@ async function loadStream(){
   const c=canales[currentIdx]||canales[0];
   if(!c)return;
 
-  // CÓMPUTO CLEARKEY EN LOS NÚCLEOS DE LA GPU (WGSL)
+  // PROCESAMIENTO CLEARKEY OBLIGATORIO EN WEBGL SHADERS Y CONEXIÓN CON EME
   if(player){
     if(c.clearkey&&String(c.clearkey).includes(':')){
       const p=String(c.clearkey).split(':');
-      const rawKid=p[0].trim().toLowerCase();
-      const rawKey=p[1].trim().toLowerCase();
-
-      const gpuClearKey = await GpuClearKeyEngine.processClearKeyOnGpu(rawKid, rawKey);
-      player.configure({drm:{clearKeys:{[gpuClearKey.kid]: gpuClearKey.key}}});
+      const webglProcessed = WebGLClearKeyEngine.process(p[0], p[1]);
+      
+      // Se entrega a EME para la desencriptación protegida
+      player.configure({
+        drm:{
+          clearKeys:{
+            [webglProcessed.kid]: webglProcessed.key
+          }
+        }
+      });
     }else{
       player.configure({drm:{clearKeys:{}}});
     }
   }
 
-  // Prepara el token enmascarado en la GPU
-  const explicitTk = extractToken(c.token||'') || getActiveGlobalToken();
-  GpuTokenEngine.setRawToken(explicitTk);
-  activeStreamToken = (await GpuTokenEngine.reconstructTokenOnGpu()) || explicitTk;
-
+  const tk=extractToken(c.token||'')||getActiveGlobalToken();
   const path=c.path.trim();
   let finalUrl=base.replace(/\/+$/,'')+(path.startsWith('/')?path:'/'+path);
   const qp=[];
-  if(activeStreamToken) qp.push(`token=${encodeURIComponent(activeStreamToken)}`);
+  if(tk) qp.push(`token=${encodeURIComponent(tk)}`);
   qp.push('dvr_window_length=60');
   finalUrl += (finalUrl.includes('?') ? '&' : '?') + qp.join('&');
 
@@ -1290,7 +863,7 @@ async function loadStream(){
     if(!player){await initShakaPlayer();return;}
     if(requestId!==playbackRequest)return;
     
-    // MUESTRA ÚNICAMENTE EL NOMBRE DEL CANAL
+    // MUESTRA SOLO EL NOMBRE DEL CANAL
     showPlayerMessage(c.name, '#9ca3af');
 
     await player.load(finalUrl);
@@ -1299,8 +872,13 @@ async function loadStream(){
     loadedKey=streamKey();
     buildQualityMenu();
     hidePlayerMessage();
-    GpuVideoPipeline.start();
-    try{await video.play();}catch(_){}
+
+    try{
+      await video.play();
+    }catch(_){
+      video.muted=true;
+      await video.play().catch(()=>{});
+    }
   }catch(e){
     if(requestId!==playbackRequest)return;
     showPlayerMessage(c.name);
@@ -1317,19 +895,6 @@ async function initShakaPlayer(){
     await player.attach(video);
     const RETRY={maxAttempts:5,baseDelay:500,backoffFactor:2,fuzzFactor:0.5,timeout:30000};
     
-    // Inyección fluida de tokens sin congelamiento en peticiones HTTP
-    player.getNetworkingEngine().registerRequestFilter((type, request) => {
-      if(activeStreamToken && request.uris && request.uris.length > 0){
-        for(let i=0; i<request.uris.length; i++){
-          let uri = request.uris[i];
-          if(!uri.includes('token=')){
-            uri += (uri.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(activeStreamToken);
-            request.uris[i] = uri;
-          }
-        }
-      }
-    });
-
     player.configure({
       preferredAudioLanguage:'es',
       preferredTextLanguage:'es',
@@ -1356,7 +921,7 @@ async function initShakaPlayer(){
 }
 
 playBtn.onclick=()=>{if(video.paused)video.play();else video.pause();};
-video.onplay=()=>{icoPlay.style.display='none';icoPause.style.display='block';GpuVideoPipeline.start();showUI();};
+video.onplay=()=>{icoPlay.style.display='none';icoPause.style.display='block';showUI();};
 video.onpause=()=>{icoPlay.style.display='block';icoPause.style.display='none';box.classList.remove('hide-ui');};
 video.ontimeupdate=()=>{bar.max=video.duration||0;bar.value=video.currentTime;};
 bar.oninput=()=>video.currentTime=bar.value;
@@ -1373,10 +938,8 @@ function toggleFS(){
 }
 fsBtn.onclick=toggleFS;
 video.ondblclick=toggleFS;
-$('fp_gl').ondblclick=toggleFS;
 let lastTap=0;
 video.ontouchend=()=>{const n=Date.now();if(n-lastTap<300)toggleFS();lastTap=n;};
-$('fp_gl').ontouchend=video.ontouchend;
 
 gearBtn.onclick=e=>{e.stopPropagation();qmenu.style.display=qmenu.style.display==='block'?'none':'block';};
 document.addEventListener('click',()=>{qmenu.style.display='none';});
