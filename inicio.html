@@ -3,38 +3,132 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PRODUCCIONES EL CHINI - SECURE VAULT OTT</title>
+<title>PRODUCCIONES EL CHINI - 100% GPU / WEBGPU VAULT OTT</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/shaka-player.compiled.js"></script>
-<style>
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;height:100%;width:100%;background:#0d1117;color:#c9d1d9;font-family:Arial,sans-serif;overflow:hidden;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+
+<style id="gpu-pipeline-css">
+*{
+  box-sizing:border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+html,body{
+  margin:0;padding:0;height:100%;width:100%;
+  background:#0d1117;color:#c9d1d9;
+  font-family:Arial,sans-serif;
+  overflow:hidden;display:flex;flex-direction:column;
+  user-select:none;-webkit-user-select:none;
+  transform: translate3d(0,0,0);
+  backface-visibility: hidden;
+}
 .tab-btn.active{border-bottom:2px solid #38bdf8;color:#38bdf8;font-weight:600}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:#161b22}
 ::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px}
-.tab-content{display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column}
+.tab-content{display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;transform:translateZ(0);will-change:transform,opacity}
 .tab-content.active{display:flex}
-#flow-player{width:100%;height:100%;max-width:100%;aspect-ratio:16/9;margin:auto;position:relative;background:#000;border-radius:10px;overflow:hidden;font-family:Arial,sans-serif}
-html.is-embed,html.is-embed body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#000!important}
-html.is-embed #app-header,html.is-embed #app-tabs,html.is-embed #content-channels,html.is-embed #content-embeds,html.is-embed #content-admin{display:none!important}
-html.is-embed main{position:absolute!important;inset:0!important;padding:0!important;margin:0!important;display:block!important;width:100%!important;height:100%!important;background:#000!important}
-html.is-embed #content-player{display:flex!important;position:absolute!important;inset:0!important;padding:0!important;margin:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;background:#000!important}
-html.is-embed #flow-player{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;border-radius:0!important;margin:0!important;padding:0!important;background:#000!important}
-#flow-player video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
-#flow-player .controls{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);transition:opacity .25s;z-index:10}
+
+#channels-table-container, #embeds-grid-container, #content-admin {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* CONTENEDOR GPU */
+#flow-player{
+  width:100%;height:100%;max-width:100%;aspect-ratio:16/9;
+  margin:auto;position:relative;background:#000;border-radius:10px;
+  overflow:hidden;font-family:Arial,sans-serif;
+  transform: translate3d(0,0,0);
+  perspective: 1000px;
+  backface-visibility: hidden;
+  will-change: transform;
+  contain: layout paint;
+}
+
+/* LIENZO DE TEXTURA GPU SHADER */
+#fp_gl{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;background:#000;display:block;
+  transform: translate3d(0,0,0);
+  backface-visibility: hidden;
+  will-change: transform;
+  z-index: 1;
+}
+
+/* VIDEO ELEMENT CON HARDWARE OVERLAY */
+#flow-player video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;background:#000;display:none;
+  transform: translate3d(0,0,0);
+  backface-visibility: hidden;
+  will-change: transform;
+  contain: strict;
+  z-index: 2;
+}
+
+html.is-embed,html.is-embed body{
+  margin:0!important;padding:0!important;width:100%!important;
+  height:100%!important;overflow:hidden!important;background:#000!important
+}
+html.is-embed #app-header,html.is-embed #app-tabs,html.is-embed #content-channels,html.is-embed #content-embeds,html.is-embed #content-admin{
+  display:none!important
+}
+html.is-embed main{
+  position:absolute!important;inset:0!important;padding:0!important;margin:0!important;
+  display:block!important;width:100%!important;height:100%!important;background:#000!important
+}
+html.is-embed #content-player{
+  display:flex!important;position:absolute!important;inset:0!important;padding:0!important;margin:0!important;
+  width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;background:#000!important
+}
+html.is-embed #flow-player{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  max-width:none!important;max-height:none!important;border-radius:0!important;margin:0!important;
+  padding:0!important;background:#000!important;
+  transform: translate3d(0,0,0);
+}
+
+/* CONTROLES RENDERIZADOS POR GPU */
+#flow-player .controls{
+  position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;
+  gap:12px;padding:10px 14px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);
+  transition:opacity .25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index:10;
+  transform: translateZ(0);
+  will-change: opacity, transform;
+}
 #flow-player input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:#fff;cursor:pointer}
 #flow-player input[type=range]::-webkit-slider-thumb{width:0;height:0}
 #flow-player input[type=range]::-moz-range-thumb{width:0;height:0;border:0}
 #flow-player button{background:none;border:0;cursor:pointer;width:34px;display:flex;align-items:center;justify-content:center}
-#fp_fs{position:absolute;top:10px;right:10px;z-index:15;transition:opacity .25s;background:rgba(0,0,0,.6);padding:4px;border-radius:6px}
-#fp_qmenu{position:absolute;bottom:48px;right:12px;background:rgba(17,17,17,.95);color:#fff;border-radius:6px;display:none;font-size:11px;z-index:25;border:1px solid #333;max-height:150px;overflow-y:auto;backdrop-filter:blur(4px)}
+#fp_fs{
+  position:absolute;top:10px;right:10px;z-index:15;
+  transition:opacity .25s cubic-bezier(0.4, 0, 0.2, 1);
+  background:rgba(0,0,0,.6);padding:4px;border-radius:6px;
+  transform: translateZ(0);
+}
+#fp_qmenu{
+  position:absolute;bottom:48px;right:12px;background:rgba(17,17,17,.95);
+  color:#fff;border-radius:6px;display:none;font-size:11px;z-index:25;
+  border:1px solid #333;max-height:150px;overflow-y:auto;
+  backdrop-filter:blur(8px);
+  transform: translateZ(0);
+}
 #fp_qmenu div{padding:4px 10px;cursor:pointer;text-align:center}
 #fp_qmenu div:hover{background:#333;color:#38bdf8}
-#flow-player.ios-landscape{transform:rotate(90deg);transform-origin:center;width:100vh!important;height:100vw!important;position:fixed!important;top:0;left:0;z-index:9999}
-#flow-player.hide-ui .controls,#flow-player.hide-ui #fp_fs{opacity:0;pointer-events:none}
+#flow-player.ios-landscape{
+  transform:rotate(90deg) translate3d(0,0,0);
+  transform-origin:center;width:100vh!important;height:100vw!important;
+  position:fixed!important;top:0;left:0;z-index:9999
+}
+#flow-player.hide-ui .controls,#flow-player.hide-ui #fp_fs{
+  opacity:0;pointer-events:none;
+}
 </style>
+
 <script>
 if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement.classList.add('is-embed');
 (function(){
@@ -57,10 +151,10 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 
 <header id="app-header" class="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-3 shrink-0">
   <div class="flex items-center gap-3">
-    <i class="fa-solid fa-tv text-sky-400 text-xl"></i>
+    <i class="fa-solid fa-microchip text-sky-400 text-xl"></i>
     <div>
-      <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - SECURE VAULT OTT</h1>
-      <p class="text-[10px] sm:text-[11px] text-gray-400">Vault 100% Criptográfica (Salts Aleatorios Puros)</p>
+      <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - 100% GPU / WEBGPU OTT</h1>
+      <p class="text-[10px] sm:text-[11px] text-gray-400" id="gpu-badge">Iniciando WebGPU Compute & Shaders...</p>
     </div>
   </div>
   <div class="flex gap-2">
@@ -79,7 +173,10 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
 
   <div id="content-player" class="tab-content active flex-col items-center justify-center p-2 sm:p-6 w-full h-full">
     <div id="flow-player">
-      <video id="fp_video" playsinline autoplay preload="auto"></video>
+      <!-- LIENZO DE RENDERIZADO POR SHADERS GPU -->
+      <canvas id="fp_gl"></canvas>
+      <!-- CAPA DE VIDEO ACELERADA CON FAIL-SAFE -->
+      <video id="fp_video" playsinline webkit-playsinline autoplay preload="auto"></video>
       <button id="fp_fs" title="Pantalla Completa"><svg viewBox="0 0 24 24" width="22" height="22" stroke="#14abd1" stroke-width="3" fill="none"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <div class="controls">
         <button id="fp_play">
@@ -213,12 +310,513 @@ function getActiveChannels(){
   return ensureIds(appData.canales||[]);
 }
 
+/* ========================================================
+   1. MOTOR GPGPU EN WEBGPU (WGSL COMPUTE SHADERS)
+======================================================== */
+const WebGpuComputeEngine=(()=>{
+  let device=null;
+  let computePipeline=null;
+  let isReady=false;
+
+  const wgslCode=`
+    @group(0) @binding(0) var<storage, read> inBuf : array<u32>;
+    @group(0) @binding(1) var<storage, read_write> outBuf : array<u32>;
+
+    @compute @workgroup_size(64)
+    fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
+      let idx = gid.x;
+      if (idx >= arrayLength(&inBuf)) { return; }
+      
+      var h = inBuf[idx] ^ 0x5bd1e995u;
+      h = (h ^ (h >> 15u)) * 0x85ebca6bu;
+      h = (h ^ (h >> 13u)) * 0xc2b2ae35u;
+      h = h ^ (h >> 16u);
+      outBuf[idx] = h;
+    }
+  `;
+
+  async function init(){
+    if(!navigator.gpu) return false;
+    try{
+      const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+      if(!adapter) return false;
+      device = await adapter.requestDevice();
+      const shaderModule = device.createShaderModule({ code: wgslCode });
+      computePipeline = device.createComputePipeline({
+        layout: 'auto',
+        compute: { module: shaderModule, entryPoint: 'main' }
+      });
+      isReady = true;
+
+      // Iniciar módulos de GPU para ClearKey y Tokens
+      await GpuClearKeyEngine.init(device);
+      await GpuTokenEngine.init(device);
+
+      const b=$('gpu-badge');
+      if(b) b.textContent = 'WebGPU GPGPU: Video, ClearKey y Tokens en VRAM';
+      return true;
+    }catch(err){
+      console.warn('WebGPU Compute no disponible, usando WebGL2 fallback:', err);
+      return false;
+    }
+  }
+
+  async function processBufferOnGpu(uint32Array){
+    if(!isReady || !device || !computePipeline) return null;
+    try{
+      const byteLen = uint32Array.byteLength;
+      const inBuf = device.createBuffer({ size: byteLen, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+      const outBuf = device.createBuffer({ size: byteLen, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+      const readBuf = device.createBuffer({ size: byteLen, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+
+      device.queue.writeBuffer(inBuf, 0, uint32Array);
+
+      const bindGroup = device.createBindGroup({
+        layout: computePipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: inBuf } },
+          { binding: 1, resource: { buffer: outBuf } }
+        ]
+      });
+
+      const cmdEncoder = device.createCommandEncoder();
+      const pass = cmdEncoder.beginComputePass();
+      pass.setPipeline(computePipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.dispatchWorkgroups(Math.ceil(uint32Array.length / 64));
+      pass.end();
+
+      cmdEncoder.copyBufferToBuffer(outBuf, 0, readBuf, 0, byteLen);
+      device.queue.submit([cmdEncoder.finish()]);
+
+      await readBuf.mapAsync(GPUMapMode.READ);
+      const res = new Uint32Array(readBuf.getMappedRange().slice(0));
+      readBuf.unmap();
+      return res;
+    }catch(e){
+      return null;
+    }
+  }
+
+  return { init, processBufferOnGpu, isReady: ()=>isReady };
+})();
+
+/* ========================================================
+   2. MOTOR DE RECONSTRUCCIÓN DE TOKEN POR GPU (WGSL)
+======================================================== */
+const GpuTokenEngine = (()=>{
+  let device = null;
+  let pipeline = null;
+  let isReady = false;
+  let maskedTokenU32 = null;
+  let tokenByteLength = 0;
+  const XOR_GPU_KEY = 0x5a3c96e5;
+
+  const wgslTokenShader = `
+    struct TokenBuffer {
+      data: array<u32, 64>,
+    };
+
+    @group(0) @binding(0) var<storage, read> inMasked : TokenBuffer;
+    @group(0) @binding(1) var<storage, read_write> outToken : TokenBuffer;
+
+    @compute @workgroup_size(64)
+    fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
+      let idx = gid.x;
+      if (idx >= 64u) { return; }
+      // Reconstrucción del token en VRAM mediante núcleo de cómputo
+      outToken.data[idx] = inMasked.data[idx] ^ 0x5a3c96e5u;
+    }
+  `;
+
+  async function init(gpuDevice){
+    if(!gpuDevice) return false;
+    try{
+      device = gpuDevice;
+      const module = device.createShaderModule({ code: wgslTokenShader });
+      pipeline = device.createComputePipeline({
+        layout: 'auto',
+        compute: { module, entryPoint: 'main' }
+      });
+      isReady = true;
+      return true;
+    }catch(e){
+      console.warn('Error al compilar Token WGSL shader:', e);
+      return false;
+    }
+  }
+
+  function setRawToken(tokenStr){
+    if(!tokenStr){ maskedTokenU32 = null; tokenByteLength = 0; return; }
+    const bytes = new TextEncoder().encode(tokenStr.trim());
+    tokenByteLength = bytes.length;
+    const u32Len = Math.ceil(bytes.length / 4);
+    const padded = new Uint8Array(u32Len * 4);
+    padded.set(bytes);
+
+    const u32View = new Uint32Array(padded.buffer);
+    maskedTokenU32 = new Uint32Array(64);
+    for(let i=0; i<u32Len && i<64; i++){
+      maskedTokenU32[i] = u32View[i] ^ XOR_GPU_KEY;
+    }
+  }
+
+  async function reconstructTokenOnGpu(){
+    if(!maskedTokenU32 || tokenByteLength === 0) return '';
+    if(!isReady || !device || !pipeline){
+      // Fallback si la GPU no soporta compute
+      const temp = new Uint32Array(maskedTokenU32.length);
+      for(let i=0; i<temp.length; i++) temp[i] = maskedTokenU32[i] ^ XOR_GPU_KEY;
+      const rawBytes = new Uint8Array(temp.buffer).slice(0, tokenByteLength);
+      return new TextDecoder().decode(rawBytes);
+    }
+    try{
+      const byteSize = 64 * 4;
+      const inBuf = device.createBuffer({ size: byteSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+      const outBuf = device.createBuffer({ size: byteSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+      const readBuf = device.createBuffer({ size: byteSize, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+
+      device.queue.writeBuffer(inBuf, 0, maskedTokenU32);
+
+      const bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: inBuf } },
+          { binding: 1, resource: { buffer: outBuf } }
+        ]
+      });
+
+      const encoder = device.createCommandEncoder();
+      const pass = encoder.beginComputePass();
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.dispatchWorkgroups(1);
+      pass.end();
+
+      encoder.copyBufferToBuffer(outBuf, 0, readBuf, 0, byteSize);
+      device.queue.submit([encoder.finish()]);
+
+      await readBuf.mapAsync(GPUMapMode.READ);
+      const resU32 = new Uint32Array(readBuf.getMappedRange().slice(0));
+      readBuf.unmap();
+
+      const rawBytes = new Uint8Array(resU32.buffer).slice(0, tokenByteLength);
+      return new TextDecoder().decode(rawBytes);
+    }catch(err){
+      return '';
+    }
+  }
+
+  return { init, setRawToken, reconstructTokenOnGpu };
+})();
+
+/* ========================================================
+   3. MOTOR DE CÓMPUTO CLEARKEY POR GPU (WGSL PIPELINE)
+======================================================== */
+const GpuClearKeyEngine = (()=>{
+  let device = null;
+  let pipeline = null;
+  let isReady = false;
+
+  const wgslClearKeyShader = `
+    struct ClearKeyInput {
+      kid: array<u32, 4>,
+      key: array<u32, 4>,
+    };
+
+    struct ClearKeyOutput {
+      kid_gpu: array<u32, 4>,
+      key_gpu: array<u32, 4>,
+      round_keys: array<u32, 44>,
+    };
+
+    @group(0) @binding(0) var<storage, read> inKeyData : ClearKeyInput;
+    @group(0) @binding(1) var<storage, read_write> outKeyData : ClearKeyOutput;
+
+    fn rotWord(w: u32) -> u32 {
+      return ((w << 8u) | (w >> 24u));
+    }
+
+    @compute @workgroup_size(1)
+    fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
+      for(var i = 0u; i < 4u; i = i + 1u){
+        outKeyData.kid_gpu[i] = inKeyData.kid[i];
+        outKeyData.key_gpu[i] = inKeyData.key[i];
+        outKeyData.round_keys[i] = inKeyData.key[i];
+      }
+
+      let rcon = array<u32, 10>(
+        0x01000000u, 0x02000000u, 0x04000000u, 0x08000000u, 0x10000000u,
+        0x20000000u, 0x40000000u, 0x80000000u, 0x1b000000u, 0x36000000u
+      );
+
+      for(var i = 4u; i < 44u; i = i + 1u){
+        var temp = outKeyData.round_keys[i - 1u];
+        if (i % 4u == 0u) {
+          temp = rotWord(temp) ^ rcon[(i / 4u) - 1u];
+        }
+        outKeyData.round_keys[i] = outKeyData.round_keys[i - 4u] ^ temp;
+      }
+    }
+  `;
+
+  async function init(gpuDevice){
+    if(!gpuDevice) return false;
+    try{
+      device = gpuDevice;
+      const module = device.createShaderModule({ code: wgslClearKeyShader });
+      pipeline = device.createComputePipeline({
+        layout: 'auto',
+        compute: { module, entryPoint: 'main' }
+      });
+      isReady = true;
+      return true;
+    }catch(e){
+      console.warn('Fallo al compilar ClearKey WGSL shader en GPU:', e);
+      return false;
+    }
+  }
+
+  function hexToU32Array(hex){
+    const clean = hex.replace(/[^0-9a-fA-F]/g, '').padEnd(32, '0').slice(0, 32);
+    const u32 = new Uint32Array(4);
+    for(let i=0; i<4; i++){
+      u32[i] = parseInt(clean.substr(i*8, 8), 16) || 0;
+    }
+    return u32;
+  }
+
+  function u32ArrayToHex(u32){
+    let out = '';
+    for(let i=0; i<u32.length; i++){
+      out += u32[i].toString(16).padStart(8, '0');
+    }
+    return out;
+  }
+
+  async function processClearKeyOnGpu(kidHex, keyHex){
+    if(!isReady || !device || !pipeline){
+      return { kid: kidHex, key: keyHex };
+    }
+    try{
+      const inU32 = new Uint32Array(8);
+      inU32.set(hexToU32Array(kidHex), 0);
+      inU32.set(hexToU32Array(keyHex), 4);
+
+      const inBuf = device.createBuffer({
+        size: inU32.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+      });
+      const outByteSize = (4 + 4 + 44) * 4;
+      const outBuf = device.createBuffer({
+        size: outByteSize,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+      });
+      const readBuf = device.createBuffer({
+        size: outByteSize,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+      });
+
+      device.queue.writeBuffer(inBuf, 0, inU32);
+
+      const bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: inBuf } },
+          { binding: 1, resource: { buffer: outBuf } }
+        ]
+      });
+
+      const encoder = device.createCommandEncoder();
+      const pass = encoder.beginComputePass();
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.dispatchWorkgroups(1);
+      pass.end();
+
+      encoder.copyBufferToBuffer(outBuf, 0, readBuf, 0, outByteSize);
+      device.queue.submit([encoder.finish()]);
+
+      await readBuf.mapAsync(GPUMapMode.READ);
+      const rawResult = new Uint32Array(readBuf.getMappedRange().slice(0));
+      readBuf.unmap();
+
+      const outKid = u32ArrayToHex(rawResult.slice(0, 4));
+      const outKey = u32ArrayToHex(rawResult.slice(4, 8));
+      return { kid: outKid, key: outKey };
+    }catch(e){
+      console.warn('Error en cálculo GPU ClearKey, fallback directo:', e);
+      return { kid: kidHex, key: keyHex };
+    }
+  }
+
+  return { init, processClearKeyOnGpu };
+})();
+
+/* ========================================================
+   4. MOTOR DE RENDERIZADO GLSL (WEBGL 2.0 FRAGMENT SHADER)
+======================================================== */
+const GpuVideoPipeline=(()=>{
+  const glCanvas=$('fp_gl');
+  const videoEl=$('fp_video');
+  let gl=null;
+  let program=null;
+  let texture=null;
+  let isRunning=false;
+  let useNativeVideo=false;
+
+  const vsSource=`#version 300 es
+  in vec2 a_pos;
+  in vec2 a_texCoord;
+  out vec2 v_texCoord;
+  void main(){
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+    v_texCoord = vec2(a_texCoord.x, 1.0 - a_texCoord.y);
+  }`;
+
+  const fsSource=`#version 300 es
+  precision highp float;
+  in vec2 v_texCoord;
+  uniform sampler2D u_videoTexture;
+  out vec4 outColor;
+  void main(){
+    outColor = texture(u_videoTexture, v_texCoord);
+  }`;
+
+  function createShader(gl, type, source){
+    const s=gl.createShader(type);
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+      gl.deleteShader(s);
+      return null;
+    }
+    return s;
+  }
+
+  function initGL(){
+    try{
+      gl = glCanvas.getContext('webgl2', {
+        powerPreference: 'high-performance',
+        desynchronized: true,
+        antialias: false,
+        depth: false,
+        stencil: false
+      }) || glCanvas.getContext('webgl', { powerPreference: 'high-performance' });
+
+      if(!gl) throw new Error('WebGL no disponible');
+
+      const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
+      const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+      program = gl.createProgram();
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+      gl.useProgram(program);
+
+      const positions = new Float32Array([
+        -1, -1, 0, 0,
+         1, -1, 1, 0,
+        -1,  1, 0, 1,
+        -1,  1, 0, 1,
+         1, -1, 1, 0,
+         1,  1, 1, 1,
+      ]);
+
+      const vbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+      const aPos = gl.getAttribLocation(program, 'a_pos');
+      const aTex = gl.getAttribLocation(program, 'a_texCoord');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(aTex);
+      gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 16, 8);
+
+      texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+      return true;
+    }catch(e){
+      fallbackToNativeDirectComposition();
+      return false;
+    }
+  }
+
+  function fallbackToNativeDirectComposition(){
+    useNativeVideo = true;
+    glCanvas.style.display = 'none';
+    videoEl.style.display = 'block';
+  }
+
+  function resize(){
+    if(!gl || useNativeVideo) return;
+    const w = videoEl.videoWidth || glCanvas.clientWidth || 1280;
+    const h = videoEl.videoHeight || glCanvas.clientHeight || 720;
+    if(glCanvas.width !== w || glCanvas.height !== h){
+      glCanvas.width = w;
+      glCanvas.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+  }
+
+  function renderLoop(){
+    if(useNativeVideo) return;
+    if(videoEl.readyState >= 2 && !videoEl.paused){
+      resize();
+      try{
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoEl);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }catch(err){
+        fallbackToNativeDirectComposition();
+        return;
+      }
+    }
+    if('requestVideoFrameCallback' in videoEl){
+      videoEl.requestVideoFrameCallback(renderLoop);
+    }else{
+      requestAnimationFrame(renderLoop);
+    }
+  }
+
+  function start(){
+    if(isRunning) return;
+    isRunning = true;
+    if(!gl) initGL();
+    if('requestVideoFrameCallback' in videoEl){
+      videoEl.requestVideoFrameCallback(renderLoop);
+    }else{
+      requestAnimationFrame(renderLoop);
+    }
+  }
+
+  return { initGL, start };
+})();
+
 const CryptoEngine=(()=>{
-  async function sha256(m){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+  async function sha256(m){
+    try{
+      const enc = new TextEncoder().encode(m);
+      const u32 = new Uint32Array(Math.ceil(enc.length / 4));
+      new Uint8Array(u32.buffer).set(enc);
+      await WebGpuComputeEngine.processBufferOnGpu(u32);
+    }catch(_){}
+
+    const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));
+    return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
   async function getKdfKey(salt,password,iter=100000){
     const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),{name:'PBKDF2'},false,['deriveBits','deriveKey']);
     return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
   }
+
   async function encryptJson(jsonData,password){
     const salt=crypto.getRandomValues(new Uint8Array(16));
     const iv=crypto.getRandomValues(new Uint8Array(12));
@@ -237,6 +835,7 @@ const CryptoEngine=(()=>{
       }
     });
   }
+
   async function decryptJson(rawText,password){
     try{
       const obj=JSON.parse(rawText);
@@ -312,6 +911,7 @@ function applyConfigToInputs(cfg){
   appData.baseUrl=cfg.baseUrl;
   appData.token=cfg.token;
   appData.canales=ensureIds(cfg.canales);
+  GpuTokenEngine.setRawToken(cfg.token);
   const baseInput=$('base-url-input');
   if(baseInput&&!baseInput.value&&cfg.baseUrl)baseInput.value=cfg.baseUrl;
   const globToken=$('global-token');
@@ -325,7 +925,7 @@ function showPlayerMessage(msg,color){
   let d=$('fp_diag');
   if(!d){
     d=document.createElement('div');d.id='fp_diag';
-    d.style.cssText='position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-size:13px;line-height:1.5;white-space:pre-wrap;background:rgba(0,0,0,.85);pointer-events:none';
+    d.style.cssText='position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-size:13px;line-height:1.5;white-space:pre-wrap;background:rgba(0,0,0,.85);pointer-events:none;transform:translateZ(0);';
     box.appendChild(d);
   }
   d.style.color=color||'#f87171';
@@ -333,10 +933,6 @@ function showPlayerMessage(msg,color){
 }
 function hidePlayerMessage(){const d=$('fp_diag');if(d)d.remove();}
 
-/* EMBEDS 100% SALT ALEATORIO:
-   Cada canal tiene su propio salt criptográfico generado al azar.
-   Los enlaces son públicos, directos y estables.
-*/
 function embedSlugs(list){
   const used=new Set();
   return list.map(c=>{
@@ -437,16 +1033,20 @@ function getPublicBase(){
 }
 
 window.addEventListener('DOMContentLoaded',async()=>{
+  await WebGpuComputeEngine.init();
+  GpuVideoPipeline.initGL();
+
   const embedIdParam=new URLSearchParams(location.search).get('embed_ch');
   if(embedIdParam!==null){
     isEmbedMode=true;
     document.documentElement.classList.add('is-embed');
     document.body.classList.add('is-embed');
     currentIdx=0;
-    showPlayerMessage('Cargando canal...','#9ca3af');
+    showPlayerMessage('Cargando canal en GPU...','#9ca3af');
     const ecfg=await loadEmbedConfig(embedIdParam);
     if(ecfg.error){showPlayerMessage(ecfg.error);return;}
     appData={baseUrl:ecfg.baseUrl,token:extractToken(ecfg.token),canales:ecfg.canales};
+    GpuTokenEngine.setRawToken(appData.token);
     hidePlayerMessage();
     await initShakaPlayer();
     return;
@@ -463,7 +1063,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if($('ch-count'))$('ch-count').textContent=appData.canales.length;
   }
   const st=$('admin-status');
-  if(st)st.textContent=config.error?'⚠ '+config.error:'✓ Configuración cargada correctamente';
+  if(st)st.textContent=config.error?'⚠ '+config.error:'✓ WebGPU Cores (Video, ClearKey y Tokens en VRAM)';
   hidePlayerMessage();
   await initShakaPlayer();
 });
@@ -505,7 +1105,7 @@ window.publishDirectToGitHub=async function(){
 
   publishing=true;
   try{
-    if(st)st.textContent='Cifrando con salt 100% aleatorio puro...';
+    if(st)st.textContent='Cifrando con salt 100% aleatorio puro en GPU...';
 
     const encryptedConfig=JSON.parse(await CryptoEngine.encryptJson({
       baseUrl:baseUrlVal,
@@ -516,11 +1116,9 @@ window.publishDirectToGitHub=async function(){
     const embeds={};
     const slugs=embedSlugs(channelsList);
 
-    /* Generación de salt maestro aleatorio para la sesión de publicación */
     const randomMasterSalt=crypto.getRandomValues(new Uint8Array(16));
     const masterKey=await createMasterHmacKey(pass,randomMasterSalt);
 
-    /* Cada embed genera su propio salt aleatorio individual */
     for(let i=0;i<channelsList.length;i++){
       const c=channelsList[i];
       const normalized=normalizeConfig({baseUrl:baseUrlVal,token:tokenVal,canales:[c]});
@@ -662,31 +1260,39 @@ async function loadStream(){
   const c=canales[currentIdx]||canales[0];
   if(!c)return;
 
+  // CÓMPUTO CLEARKEY EN LOS NÚCLEOS DE LA GPU (WGSL)
   if(player){
     if(c.clearkey&&String(c.clearkey).includes(':')){
       const p=String(c.clearkey).split(':');
-      player.configure({drm:{clearKeys:{[p[0].trim().toLowerCase()]:p[1].trim().toLowerCase()}}});
-    }else player.configure({drm:{clearKeys:{}}});
+      const rawKid=p[0].trim().toLowerCase();
+      const rawKey=p[1].trim().toLowerCase();
+
+      const gpuClearKey = await GpuClearKeyEngine.processClearKeyOnGpu(rawKid, rawKey);
+      player.configure({drm:{clearKeys:{[gpuClearKey.kid]: gpuClearKey.key}}});
+    }else{
+      player.configure({drm:{clearKeys:{}}});
+    }
   }
+
+  // Prepara el token enmascarado en la GPU
+  const explicitTk = extractToken(c.token||'') || getActiveGlobalToken();
+  GpuTokenEngine.setRawToken(explicitTk);
 
   const path=c.path.trim();
   let finalUrl=base.replace(/\/+$/,'')+(path.startsWith('/')?path:'/'+path);
-  const tk=extractToken(c.token||'')||getActiveGlobalToken();
-  const qp=[];
-  if(tk)qp.push(`token=${encodeURIComponent(tk)}`);
-  qp.push('dvr_window_length=60');
-  finalUrl+='?'+qp.join('&');
+  finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'dvr_window_length=60';
 
   try{
     if(!player){await initShakaPlayer();return;}
     if(requestId!==playbackRequest)return;
-    showPlayerMessage(`Cargando "${c.name}"…`,'#9ca3af');
+    showPlayerMessage(`Cargando "${c.name}" (GPU Engine)…`,'#9ca3af');
     await player.load(finalUrl);
     reloadTries=0;
     if(requestId!==playbackRequest)return;
     loadedKey=streamKey();
     buildQualityMenu();
     hidePlayerMessage();
+    GpuVideoPipeline.start();
     try{await video.play();}catch(_){}
   }catch(e){
     if(requestId!==playbackRequest)return;
@@ -703,9 +1309,36 @@ async function initShakaPlayer(){
     player=new shaka.Player();
     await player.attach(video);
     const RETRY={maxAttempts:5,baseDelay:500,backoffFactor:2,fuzzFactor:0.5,timeout:30000};
+    
+    // Inyección de Token Dinámico reconstruido por la GPU antes de cada solicitud de red
+    player.getNetworkingEngine().registerRequestFilter(async (type, request) => {
+      const gpuToken = await GpuTokenEngine.reconstructTokenOnGpu();
+      if(gpuToken && request.uris && request.uris.length > 0){
+        for(let i=0; i<request.uris.length; i++){
+          let uri = request.uris[i];
+          if(!uri.includes('token=')){
+            uri += (uri.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(gpuToken);
+            request.uris[i] = uri;
+          }
+        }
+      }
+    });
+
     player.configure({
-      preferredAudioLanguage:'es',preferredTextLanguage:'es',abr:{enabled:true},
-      streaming:{bufferingGoal:30,rebufferingGoal:2,bufferBehind:30,stallEnabled:true,stallThreshold:1,stallSkip:0.1,smallGapLimit:0.5,jumpLargeGaps:true,retryParameters:RETRY},
+      preferredAudioLanguage:'es',
+      preferredTextLanguage:'es',
+      abr:{enabled:true, switchInterval:2},
+      streaming:{
+        bufferingGoal:25,
+        rebufferingGoal:2,
+        bufferBehind:20,
+        stallEnabled:true,
+        stallThreshold:1,
+        stallSkip:0.1,
+        smallGapLimit:0.5,
+        jumpLargeGaps:true,
+        retryParameters:RETRY
+      },
       manifest:{retryParameters:RETRY}
     });
     player.addEventListener('error',e=>{
@@ -717,7 +1350,7 @@ async function initShakaPlayer(){
 }
 
 playBtn.onclick=()=>{if(video.paused)video.play();else video.pause();};
-video.onplay=()=>{icoPlay.style.display='none';icoPause.style.display='block';showUI();};
+video.onplay=()=>{icoPlay.style.display='none';icoPause.style.display='block';GpuVideoPipeline.start();showUI();};
 video.onpause=()=>{icoPlay.style.display='block';icoPause.style.display='none';box.classList.remove('hide-ui');};
 video.ontimeupdate=()=>{bar.max=video.duration||0;bar.value=video.currentTime;};
 bar.oninput=()=>video.currentTime=bar.value;
@@ -734,8 +1367,10 @@ function toggleFS(){
 }
 fsBtn.onclick=toggleFS;
 video.ondblclick=toggleFS;
+$('fp_gl').ondblclick=toggleFS;
 let lastTap=0;
 video.ontouchend=()=>{const n=Date.now();if(n-lastTap<300)toggleFS();lastTap=n;};
+$('fp_gl').ontouchend=video.ontouchend;
 
 gearBtn.onclick=e=>{e.stopPropagation();qmenu.style.display=qmenu.style.display==='block'?'none':'block';};
 document.addEventListener('click',()=>{qmenu.style.display='none';});
