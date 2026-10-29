@@ -180,7 +180,7 @@
       transform: translate3d(0, 0, 0);
     }
 
-    /* CONTROLES DE REPRODUCCIÓN ORIGINALES */
+    /* CONTROLES EXACTOS SEGÚN LA CAPTURA */
     #flow-player .controls {
       position: absolute;
       left: 0;
@@ -189,98 +189,130 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 10px 14px;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent);
+      padding: 10px 16px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 60%, transparent 100%);
       transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 10;
       transform: translateZ(0);
       will-change: opacity, transform;
     }
 
+    /* LÍNEA DE PROGRESO BLANCA CON PUNTO AZUL */
     #flow-player input[type=range] {
       flex: 1;
       -webkit-appearance: none;
       appearance: none;
-      height: 6px;
-      border-radius: 3px;
+      height: 4px;
+      border-radius: 2px;
       background: #ffffff;
       cursor: pointer;
       outline: none;
+      margin: 0 4px;
     }
 
     #flow-player input[type=range]::-webkit-slider-thumb {
-      width: 0;
-      height: 0;
       -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #0084ff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 6px rgba(0, 132, 255, 0.75);
+      transition: transform 0.1s ease;
+    }
+
+    #flow-player input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
     }
 
     #flow-player input[type=range]::-moz-range-thumb {
-      width: 0;
-      height: 0;
-      border: 0;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #0084ff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 6px rgba(0, 132, 255, 0.75);
     }
 
     #flow-player button {
       background: none;
       border: 0;
       cursor: pointer;
-      width: 34px;
-      height: 34px;
+      width: 28px;
+      height: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #ffffff;
       outline: none;
       padding: 0;
+      transition: opacity 0.15s ease;
     }
 
     #flow-player button:hover {
       opacity: 0.85;
     }
 
+    /* BOTÓN PANTALLA COMPLETA ARRIBA A LA DERECHA (TRANSPARENTE) */
     #fp_fs {
       position: absolute;
-      top: 10px;
-      right: 10px;
+      top: 14px;
+      right: 14px;
       z-index: 15;
-      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px;
-      border-radius: 6px;
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s ease;
+      background: transparent;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      outline: none;
       transform: translateZ(0);
     }
 
-    /* SELECTOR DE RESOLUCIONES LIMPIO EN "p" */
+    #fp_fs:hover {
+      transform: scale(1.1);
+    }
+
+/* SELECTOR DE RESOLUCIONES CON EL MISMO ANCHO QUE EL ENGRANAJE */
     #fp_qmenu {
       position: absolute;
-      bottom: 48px;
-      right: 12px;
-      background: rgba(17, 17, 17, 0.96);
+      bottom: 46px;
+      right: 14px;
+      width: 34px;
+      min-width: 34px;
+      box-sizing: border-box;
+      background: #111215;
       color: #ffffff;
       border-radius: 6px;
       display: none;
       font-size: 11px;
-      z-index: 25;
-      border: 1px solid #333333;
-      max-height: 160px;
+      font-weight: 500;
+      z-index: 30;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      max-height: 200px;
       overflow-y: auto;
-      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.85);
+      padding: 4px 0;
       transform: translateZ(0);
-      min-width: 72px;
-      white-space: nowrap;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
     }
 
     #fp_qmenu div {
-      padding: 6px 12px;
+      padding: 4px 0;
+      width: 100%;
       cursor: pointer;
       text-align: center;
       transition: background 0.15s ease, color 0.15s ease;
       user-select: none;
+      white-space: nowrap;
     }
 
     #fp_qmenu div:hover {
-      background: #333333;
+      background: rgba(255, 255, 255, 0.1);
       color: #38bdf8;
     }
 
@@ -532,27 +564,34 @@
       <div id="flow-player">
         <video id="fp_video" playsinline webkit-playsinline autoplay preload="auto"></video>
         
+        <!-- Botón Pantalla Completa Cian Arriba a la Derecha -->
         <button id="fp_fs" title="Pantalla Completa">
-          <svg viewBox="0 0 24 24" width="22" height="22" stroke="#14abd1" stroke-width="3" fill="none">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="#14abd1" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
           </svg>
         </button>
 
+        <!-- Barra de Controles Inferior -->
         <div class="controls">
-          <button id="fp_play">
-            <svg id="fp_icoPlay" viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
-            <svg id="fp_icoPause" viewBox="0 0 24 24" width="20" height="20" fill="#fff" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
+          <button id="fp_play" title="Reproducir / Pausar">
+            <svg id="fp_icoPlay" viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="fp_icoPause" viewBox="0 0 24 24" width="18" height="18" fill="#fff" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
           </button>
+          
           <input id="fp_bar" type="range" value="0" min="0" step="0.1">
-          <button id="fp_mute">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M3 10v4h4l5 5V5L7 10z"/></svg>
+          
+          <button id="fp_mute" title="Silenciar / Desilenciar">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M3 10v4h4l5 5V5L7 10z"/></svg>
           </button>
-          <button id="fp_gear">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="#14abd1">
+          
+          <button id="fp_gear" title="Resoluciones">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#14abd1">
               <path d="M19.4 13.5c.04-.5.06-1 .06-1.5s-.02-1-.06-1.5l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.03 7.03 0 0 0-2.6-1.5l-.38-2.65A.5.5 0 0 0 13.1 1h-4a.5.5 0 0 0-.5.42l-.38 2.65a7.03 7.03 0 0 0-2.6 1.5l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.64L2.6 10.5c-.04.5-.06 1-.06 1.5s.02 1 .06 1.5L.49 15.15a.5.5 0 0 0-.12.64l2 3.46c.14.24.43.34.69.22l2.49-1a7.03 7.03 0 0 0 2.6 1.5l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65a7.03 7.03 0 0 0 2.6-1.5l2.49 1c.26.12.55.02.69-.22l2-3.46a.5.5 0 0 0-.12-.64L19.4 13.5zM11 15.5A3.5 3.5 0 1 1 11 8a3.5 3.5 0 0 1 0 7.5z"/>
             </svg>
           </button>
         </div>
+
+        <!-- Menú Emergente de Calidad -->
         <div id="fp_qmenu"></div>
       </div>
     </div>
@@ -1530,13 +1569,13 @@
       };
 
       /* ========================================================
-         SELECTOR DE RESOLUCIONES (AUTO ARRIBA Y RESOLUCIÓN EN "p")
+         SELECTOR DE RESOLUCIONES (IDÉNTICO A LA CAPTURA)
       ======================================================== */
       function buildQualityMenu() {
         if (!player) return;
         qmenu.innerHTML = '';
 
-        // Opción 1: Auto fija en la cima
+        // Opción Auto arriba fija
         const auto = document.createElement('div');
         auto.textContent = 'Auto';
         auto.onclick = () => {
@@ -1549,7 +1588,7 @@
         };
         qmenu.appendChild(auto);
 
-        // Opciones de resoluciones individuales en 'p' ordenadas de mayor a menor
+        // Opciones de resolución de mayor a menor con sufijo 'p'
         const seen = new Set();
         player.getVariantTracks()
           .filter(t => t.height)
