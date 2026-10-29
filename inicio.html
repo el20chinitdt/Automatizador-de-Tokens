@@ -180,141 +180,130 @@
       transform: translate3d(0, 0, 0);
     }
 
-    /* CONTROLES EXACTOS SEGÚN LA CAPTURA */
-    #flow-player .controls {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 16px;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 60%, transparent 100%);
-      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 10;
-      transform: translateZ(0);
-      will-change: opacity, transform;
-    }
+    /* CONTROLES EXACTOS SEGÚN LA CAPTURA (GRUESOS) */
+#flow-player .controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  transform: translateZ(0);
+  will-change: opacity, transform;
+}
 
-    /* LÍNEA DE PROGRESO BLANCA CON PUNTO AZUL */
-    #flow-player input[type=range] {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 4px;
-      border-radius: 2px;
-      background: #ffffff;
-      cursor: pointer;
-      outline: none;
-      margin: 0 4px;
-    }
+/* LÍNEA DE PROGRESO BLANCA GRUESA */
+#flow-player input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+  margin: 0 4px;
+}
 
-    #flow-player input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: #0084ff;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 6px rgba(0, 132, 255, 0.75);
-      transition: transform 0.1s ease;
-    }
+/* CÍRCULO AZUL GRANDE */
+#flow-player input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0084ff;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 8px rgba(0, 132, 255, 0.85);
+  transition: transform 0.1s ease;
+}
 
-    #flow-player input[type=range]::-webkit-slider-thumb:hover {
-      transform: scale(1.15);
-    }
+#flow-player input[type=range]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0084ff;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 8px rgba(0, 132, 255, 0.85);
+}
 
-    #flow-player input[type=range]::-moz-range-thumb {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: #0084ff;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 6px rgba(0, 132, 255, 0.75);
-    }
+#flow-player button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  outline: none;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
 
-    #flow-player button {
-      background: none;
-      border: 0;
-      cursor: pointer;
-      width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ffffff;
-      outline: none;
-      padding: 0;
-      transition: opacity 0.15s ease;
-    }
+#flow-player button:hover {
+  opacity: 0.85;
+}
 
-    #flow-player button:hover {
-      opacity: 0.85;
-    }
+/* BOTÓN PANTALLA COMPLETA */
+#fp_fs {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 15;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s ease;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  transform: translateZ(0);
+}
 
-    /* BOTÓN PANTALLA COMPLETA ARRIBA A LA DERECHA (TRANSPARENTE) */
-    #fp_fs {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      z-index: 15;
-      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s ease;
-      background: transparent;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      outline: none;
-      transform: translateZ(0);
-    }
+/* SELECTOR DE RESOLUCIONES */
+#fp_qmenu {
+  position: absolute;
+  bottom: 50px;
+  right: 14px;
+  background: #111215;
+  color: #ffffff;
+  border-radius: 8px;
+  display: none;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 30;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 220px;
+  overflow-y: auto;
+  min-width: 56px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85);
+  padding: 6px 0;
+  transform: translateZ(0);
+}
 
-    #fp_fs:hover {
-      transform: scale(1.1);
-    }
+#fp_qmenu div {
+  padding: 5px 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
 
-/* SELECTOR DE RESOLUCIONES CON EL MISMO ANCHO QUE EL ENGRANAJE */
-    #fp_qmenu {
-      position: absolute;
-      bottom: 46px;
-      right: 14px;
-      width: 34px;
-      min-width: 34px;
-      box-sizing: border-box;
-      background: #111215;
-      color: #ffffff;
-      border-radius: 6px;
-      display: none;
-      font-size: 11px;
-      font-weight: 500;
-      z-index: 30;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      max-height: 200px;
-      overflow-y: auto;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.85);
-      padding: 4px 0;
-      transform: translateZ(0);
-    }
-
-    #fp_qmenu div {
-      padding: 4px 0;
-      width: 100%;
-      cursor: pointer;
-      text-align: center;
-      transition: background 0.15s ease, color 0.15s ease;
-      user-select: none;
-      white-space: nowrap;
-    }
-
-    #fp_qmenu div:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #38bdf8;
-    }
+#fp_qmenu div:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #38bdf8;
+  }
 
     #flow-player.ios-landscape {
       transform: rotate(90deg) translate3d(0, 0, 0);
