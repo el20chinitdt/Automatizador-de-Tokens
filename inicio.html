@@ -257,7 +257,7 @@
       opacity: 0.85;
     }
 
-    /* BOTÓN PANTALLA COMPLETA ARRIBA A LA DERECHA (TRANSPARENTE) */
+    /* BOTÓN PANTALLA COMPLETA ARRIBA A LA DERECHA */
     #fp_fs {
       position: absolute;
       top: 14px;
@@ -332,8 +332,8 @@
   </style>
 
   <!-- ====================================================================
-       MOTOR DE AUDITORÍA PROFUNDA DE HARDWARE (DEEP SHIELD HARDENED)
-       INSPECCIÓN ACTIVA, ANTI-DEVTOOLS Y ANTI-EXTRACCIÓN
+       MOTOR DE AUDITORÍA PROFUNDA DE HARDWARE (DEEP SHIELD HARDENED V2)
+       SIN FALSOS POSITIVOS EN IFRAMES/MÓVILES + ANTI-DEBUGGER ACTIVO
        ==================================================================== -->
   <script id="deep-shield-core">
     if (new URLSearchParams(location.search).has('embed_ch')) {
@@ -380,8 +380,8 @@
           const ua = (navigator.userAgent || '') + ' ' + (navigator.appVersion || '');
           const banned = [
             'HeadlessChrome', 'PhantomJS', 'Puppeteer', 'Playwright', 'Nightmare',
-            'Selenium', 'WebDriver', 'Cypress', 'Electron', 'Wget', 'Curl',
-            'Python', 'Scrapy', 'Go-http-client', 'Java/', 'Postman', 'Insomnia'
+            'Selenium', 'WebDriver', 'Cypress', 'Wget', 'Curl',
+            'Python-requests', 'Scrapy', 'Go-http-client', 'Postman', 'Insomnia'
           ];
           for (let i = 0; i < banned.length; i++) {
             if (new RegExp(banned[i], 'i').test(ua)) {
@@ -408,11 +408,6 @@
               }
             }
           } catch (_) {}
-
-          // Detección de plugins y lenguajes vacíos típicos de bots
-          if (navigator.languages && navigator.languages.length === 0) {
-            this.abort('Lista de idiomas anómala (0).');
-          }
         },
 
         checkAutomationVariables: function() {
@@ -448,9 +443,7 @@
             canvas.width = 1;
             canvas.height = 1;
             const gl = canvas.getContext('webgl', { powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl');
-            if (!gl) {
-              this.abort('WebGL no disponible o aceleración por hardware desactivada.');
-            }
+            if (!gl) return; // Permite continuar si el móvil está en ahorro de batería temporal
 
             const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
             if (dbgInfo) {
@@ -465,9 +458,7 @@
                 'mesa offscreen',
                 'virtualbox',
                 'vmware',
-                'qemu',
-                'microsoft basic render driver',
-                'paravirtual'
+                'qemu'
               ];
 
               for (let i = 0; i < virtualDrivers.length; i++) {
@@ -479,46 +470,15 @@
           } catch (_) {}
         },
 
-        checkDevToolsDivergence: function() {
-          // Diferencia métrica entre ventana externa e interna (DevTools acopladas)
-          const widthThreshold = window.outerWidth - window.innerWidth > 160;
-          const heightThreshold = window.outerHeight - window.innerHeight > 160;
-          if (widthThreshold || heightThreshold) {
-            // Solo evaluar si la pantalla no está escalada por zoom móvil
-            if (window.innerWidth > 400 && window.devicePixelRatio <= 2.5) {
-              this.abort('Herramientas de desarrollo detectadas por ventana acoplada.');
-            }
-          }
-        },
-
-        startDebuggerTrap: function() {
-          // Bucle de alta frecuencia: si las DevTools están abiertas, el debugger frena el hilo
-          // y el delta de tiempo se dispara a más de 100ms.
-          setInterval(() => {
-            const t0 = performance.now();
+        startAntiDebuggerLoop: function() {
+          // Bucle inofensivo para el usuario normal (0ms de ejecución).
+          // Si alguien abre DevTools para inspeccionar, el navegador entra en congelamiento
+          // inmediato por interrupción de depuración.
+          setInterval(function() {
             (function() {
-              const f = new Function('debugger');
-              f();
-            })();
-            const t1 = performance.now();
-            if (t1 - t0 > 100) {
-              this.abort('Pausa de ejecución detectada (Debugger activo).');
-            }
-          }, 600);
-        },
-
-        installConsoleTraps: function() {
-          // Detección si DevTools intenta invocar representaciones toString de objetos
-          const element = new Image();
-          Object.defineProperty(element, 'id', {
-            get: () => {
-              this.abort('Acceso por consola de depuración detectado.');
-            }
-          });
-          setInterval(() => {
-            console.log(element);
-            console.clear();
-          }, 1500);
+              return false;
+            })['constructor']('debugger')();
+          }, 800);
         },
 
         blockInspectionKeysAndMouse: function() {
@@ -530,7 +490,7 @@
 
           window.addEventListener('keydown', function(e) {
             const k = (e.key || '').toUpperCase();
-            const ctrl = e.ctrlKey || e.metaKey; // Cubre Control en Windows y Command en Mac
+            const ctrl = e.ctrlKey || e.metaKey;
             const shift = e.shiftKey;
             const alt = e.altKey;
 
@@ -544,13 +504,6 @@
               e.stopPropagation();
               return false;
             }
-          }, true);
-
-          // Anular arrastre y selección indiscriminada
-          window.addEventListener('selectstart', function(e) {
-            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return true;
-            e.preventDefault();
-            return false;
           }, true);
         },
 
@@ -571,10 +524,8 @@
           this.checkWebDriverAndStealth();
           this.checkAutomationVariables();
           this.checkHardwareRenderer();
-          this.checkDevToolsDivergence();
           this.blockInspectionKeysAndMouse();
-          this.startDebuggerTrap();
-          this.installConsoleTraps();
+          this.startAntiDebuggerLoop();
         }
       };
 
@@ -1392,7 +1343,7 @@
         }
 
         const st = $('admin-status');
-        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Deep Shield Hardened + WebGL FBO Ping-Pong Activo';
+        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Deep Shield V2 + WebGL FBO Ping-Pong Activo';
         hidePlayerMessage();
         await initShakaPlayer();
       });
