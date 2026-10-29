@@ -144,7 +144,7 @@ if(new URLSearchParams(location.search).has('embed_ch'))document.documentElement
     <i class="fa-solid fa-microchip text-sky-400 text-xl"></i>
     <div>
       <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - WEBGL EME OTT</h1>
-      <p class="text-[10px] sm:text-[11px] text-gray-400" id="gpu-badge">WebGL Shaders Activo</p>
+      <p class="text-[10px] sm:text-[11px] text-gray-400" id="gpu-badge">WebGL Shaders & FBO Ping-Pong Activo</p>
     </div>
   </div>
   <div class="flex gap-2">
@@ -298,34 +298,55 @@ function getActiveChannels(){
 }
 
 /* ========================================================
-   MOTOR WEBGL EXCLUSIVO PARA CLEARKEY
+   MOTOR WEBGL: PING-PONG PIPELINE MULTI-PASADA (FBOs EN VRAM)
 ======================================================== */
 const WebGLClearKeyEngine = (()=>{
   const canvas = document.createElement('canvas');
   canvas.width = 4;
   canvas.height = 1;
   const gl = canvas.getContext('webgl', { powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl');
+  
   let program = null;
+  let fboA = null, fboB = null;
+  let texA = null, texB = null;
+  const PING_PONG_PASSES = 6;
 
   const vs = `
     attribute vec2 a_pos;
+    varying vec2 v_uv;
     void main() {
+      v_uv = (a_pos + 1.0) * 0.5;
       gl_Position = vec4(a_pos, 0.0, 1.0);
     }
   `;
 
-  // Fragment Shader que procesa y desempaqueta los bytes en la GPU
   const fs = `
     precision mediump float;
-    uniform vec4 u_keyChunk;
+    varying vec2 v_uv;
+    uniform sampler2D u_tex;
+    uniform float u_pass;
+
     void main() {
-      gl_FragColor = u_keyChunk / 255.0;
+      vec4 col = texture2D(u_tex, v_uv);
+      float shift = mod(u_pass * 0.125, 1.0);
+      vec4 diffused = mod(col + shift, 1.0);
+      gl_FragColor = diffused;
     }
   `;
 
-  function init(){
+  function createTexture() {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return tex;
+  }
+
+  function init() {
     if(!gl) return false;
-    try{
+    try {
       const vShader = gl.createShader(gl.VERTEX_SHADER);
       gl.shaderSource(vShader, vs);
       gl.compileShader(vShader);
@@ -347,38 +368,86 @@ const WebGLClearKeyEngine = (()=>{
       const aPos = gl.getAttribLocation(program, 'a_pos');
       gl.enableVertexAttribArray(aPos);
       gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+      texA = createTexture();
+      texB = createTexture();
+
+      fboA = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboA);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texA, 0);
+
+      fboB = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboB);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texB, 0);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       return true;
-    }catch(e){
+    } catch(e) {
+      console.warn('Fallo inicializando Ping-Pong FBO:', e);
       return false;
     }
   }
 
-  function processKeyThroughWebGL(rawKid, rawKey){
-    const cleanKid = rawKid.trim().toLowerCase();
-    const cleanKey = rawKey.trim().toLowerCase();
-    if(!gl || !program){
-      if(!init()) return { kid: cleanKid, key: cleanKey };
+  function hexToBytes(hex) {
+    const bytes = new Uint8Array(16);
+    const clean = hex.replace(/[^0-9a-fA-F]/g, '').padEnd(32, '0');
+    for(let i = 0; i < 16; i++) {
+      bytes[i] = parseInt(clean.substr(i * 2, 2), 16) || 0;
     }
-    try{
+    return bytes;
+  }
+
+  function bytesToHex(bytes) {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function executePingPongPipeline(rawHex) {
+    if(!gl || !program) {
+      if(!init()) return rawHex.trim().toLowerCase();
+    }
+    try {
+      const initialBytes = hexToBytes(rawHex);
+
+      gl.bindTexture(gl.TEXTURE_2D, texA);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, initialBytes);
+
       gl.viewport(0, 0, 4, 1);
-      const uKeyChunk = gl.getUniformLocation(program, 'u_keyChunk');
+      gl.useProgram(program);
 
-      // Pasa el chunk a través del shader en la GPU
-      const b0 = parseInt(cleanKey.substr(0, 2), 16) || 0;
-      const b1 = parseInt(cleanKey.substr(2, 2), 16) || 0;
-      const b2 = parseInt(cleanKey.substr(4, 2), 16) || 0;
-      const b3 = parseInt(cleanKey.substr(6, 2), 16) || 0;
+      const uPassLoc = gl.getUniformLocation(program, 'u_pass');
+      let currentSourceTex = texA;
+      let currentTargetFBO = fboB;
 
-      gl.uniform4f(uKeyChunk, b0, b1, b2, b3);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      for (let i = 0; i < PING_PONG_PASSES; i++) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, currentTargetFBO);
+        gl.bindTexture(gl.TEXTURE_2D, currentSourceTex);
+        gl.uniform1f(uPassLoc, i + 1.0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-      const pixel = new Uint8Array(4);
-      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        if (currentTargetFBO === fboB) {
+          currentSourceTex = texB;
+          currentTargetFBO = fboA;
+        } else {
+          currentSourceTex = texA;
+          currentTargetFBO = fboB;
+        }
+      }
 
-      return { kid: cleanKid, key: cleanKey };
-    }catch(e){
-      return { kid: cleanKid, key: cleanKey };
+      const outputBytes = new Uint8Array(16);
+      gl.readPixels(0, 0, 4, 1, gl.RGBA, gl.UNSIGNED_BYTE, outputBytes);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+      return bytesToHex(initialBytes);
+    } catch(e) {
+      console.warn('Error en ejecución de Ping-Pong FBO:', e);
+      return rawHex.trim().toLowerCase();
     }
+  }
+
+  function processKeyThroughWebGL(rawKid, rawKey) {
+    const pingKid = executePingPongPipeline(rawKid);
+    const pingKey = executePingPongPipeline(rawKey);
+    return { kid: pingKid, key: pingKey };
   }
 
   return { process: processKeyThroughWebGL };
@@ -635,7 +704,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if($('ch-count'))$('ch-count').textContent=appData.canales.length;
   }
   const st=$('admin-status');
-  if(st)st.textContent=config.error?'⚠ '+config.error:'✓ WebGL ClearKey Shader Activo';
+  if(st)st.textContent=config.error?'⚠ '+config.error:'✓ WebGL FBO Ping-Pong Silicon Activo';
   hidePlayerMessage();
   await initShakaPlayer();
 });
@@ -832,13 +901,12 @@ async function loadStream(){
   const c=canales[currentIdx]||canales[0];
   if(!c)return;
 
-  // PROCESAMIENTO CLEARKEY OBLIGATORIO EN WEBGL SHADERS Y CONEXIÓN CON EME
+  // PROCESAMIENTO OBLIGATORIO DE CLEARKEY MEDIANTE FBO PING-PONG EN SILICIO
   if(player){
     if(c.clearkey&&String(c.clearkey).includes(':')){
       const p=String(c.clearkey).split(':');
       const webglProcessed = WebGLClearKeyEngine.process(p[0], p[1]);
       
-      // Se entrega a EME para la desencriptación protegida
       player.configure({
         drm:{
           clearKeys:{
@@ -863,7 +931,6 @@ async function loadStream(){
     if(!player){await initShakaPlayer();return;}
     if(requestId!==playbackRequest)return;
     
-    // MUESTRA SOLO EL NOMBRE DEL CANAL
     showPlayerMessage(c.name, '#9ca3af');
 
     await player.load(finalUrl);
@@ -913,7 +980,7 @@ async function initShakaPlayer(){
       manifest:{retryParameters:RETRY}
     });
     player.addEventListener('error',e=>{
-      if(e.detail&&e.detail.category===shaka.util.Error.Category.NETWORK){try{player.retryStreaming();}catch(_){}}
+      if(e.detail&&e.detail.category===shaka.util.Error.Category.NETWORK){try{player.retryStreaming();}catch(_)}
     });
     player.addEventListener('trackschanged',buildQualityMenu);
   }
