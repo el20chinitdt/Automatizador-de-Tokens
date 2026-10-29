@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>PRODUCCIONES EL CHINI - WEBGL EME OTT ENTERPRISE</title>
+  <title>PRODUCCIONES EL CHINI - WEBGL EME OTT</title>
   
-  <!-- Dependencias Externas CDN -->
+  <!-- Inclusión de librerías base -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/shaka-player.compiled.js"></script>
 
   <!-- ====================================================================
-       PIPELINE DE ESTILOS GPU, DIRECTCOMPOSITION Y CAPAS VISUALES
+       ESTILOS DEL REPRODUCTOR Y PIPELINE GPU NATIVO
        ==================================================================== -->
   <style id="gpu-pipeline-css">
-    *, *::before, *::after {
+    * {
       box-sizing: border-box;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -25,9 +25,9 @@
       padding: 0;
       height: 100%;
       width: 100%;
-      background-color: #080b10;
+      background: #0d1117;
       color: #c9d1d9;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: Arial, sans-serif;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -37,40 +37,33 @@
       backface-visibility: hidden;
     }
 
-    /* Scrollbars personalizadas con estética de terminal */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0d1117;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #21262d;
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #38bdf8;
-    }
-
-    /* Pestañas y Enrutamiento DOM */
     .tab-btn {
       position: relative;
       transition: color 0.2s ease, border-color 0.2s ease;
     }
+
     .tab-btn.active {
+      border-bottom: 2px solid #38bdf8;
       color: #38bdf8;
       font-weight: 600;
     }
-    .tab-btn.active::after {
-      content: '';
-      position: absolute;
-      bottom: -1px;
-      left: 0;
-      right: 0;
-      height: 2px;
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #161b22;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
       background: #38bdf8;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
     }
 
     .tab-content {
@@ -82,11 +75,20 @@
       transform: translateZ(0);
       will-change: transform, opacity;
     }
+
     .tab-content.active {
       display: flex;
     }
 
-    /* Contenedor Acelerado por Hardware */
+    #channels-table-container,
+    #embeds-grid-container,
+    #content-admin {
+      -webkit-overflow-scrolling: touch;
+      transform: translateZ(0);
+      will-change: scroll-position;
+    }
+
+    /* CONTENEDOR PRINCIPAL ACELERADO POR HARDWARE */
     #flow-player {
       width: 100%;
       height: 100%;
@@ -95,17 +97,17 @@
       margin: auto;
       position: relative;
       background: #000000;
-      border-radius: 8px;
+      border-radius: 10px;
       overflow: hidden;
+      font-family: Arial, sans-serif;
       transform: translate3d(0, 0, 0);
       perspective: 1000px;
       backface-visibility: hidden;
       will-change: transform;
       contain: layout paint;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
+    /* ELEMENTO DE VIDEO CON SOPORTE DIRECTCOMPOSITION */
     #flow-player video {
       position: absolute;
       inset: 0;
@@ -121,145 +123,9 @@
       z-index: 1;
     }
 
-    /* Interfaz de Usuario de Controles */
-    #flow-player .controls {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 18px;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
-      transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 10;
-      transform: translateZ(0);
-      will-change: opacity, transform;
-    }
-
-    #flow-player input[type=range] {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 5px;
-      border-radius: 3px;
-      background: rgba(255, 255, 255, 0.2);
-      outline: none;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-    #flow-player input[type=range]:hover {
-      background: rgba(255, 255, 255, 0.35);
-    }
-    #flow-player input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: #38bdf8;
-      box-shadow: 0 0 8px #38bdf8;
-      cursor: pointer;
-    }
-
-    #flow-player button {
-      background: none;
-      border: 0;
-      cursor: pointer;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ffffff;
-      transition: transform 0.15s ease, color 0.15s ease;
-    }
-    #flow-player button:hover {
-      transform: scale(1.1);
-      color: #38bdf8;
-    }
-
-    #fp_fs {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 15;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(6px);
-      padding: 6px;
-      border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      transition: opacity 0.3s ease;
-    }
-
-    #fp_qmenu {
-      position: absolute;
-      bottom: 54px;
-      right: 16px;
-      background: rgba(13, 17, 23, 0.95);
-      color: #ffffff;
-      border-radius: 8px;
-      display: none;
-      font-size: 12px;
-      z-index: 25;
-      border: 1px solid #30363d;
-      max-height: 180px;
-      overflow-y: auto;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
-      min-width: 100px;
-    }
-    #fp_qmenu div {
-      padding: 6px 14px;
-      cursor: pointer;
-      text-align: center;
-      transition: background 0.15s ease;
-    }
-    #fp_qmenu div:hover {
-      background: #21262d;
-      color: #38bdf8;
-    }
-
-    /* HUD de Telemetría Dinámica */
-    #fp_hud {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      z-index: 15;
-      background: rgba(13, 17, 23, 0.85);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-family: monospace;
-      font-size: 10px;
-      color: #7dd3fc;
-      pointer-events: none;
-      display: none;
-      line-height: 1.4;
-    }
-
-    #flow-player.hide-ui .controls,
-    #flow-player.hide-ui #fp_fs {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    /* Modo Pantalla Completa iOS */
-    #flow-player.ios-landscape {
-      transform: rotate(90deg) translate3d(0, 0, 0);
-      transform-origin: center;
-      width: 100vh !important;
-      height: 100vw !important;
-      position: fixed !important;
-      top: 0;
-      left: 0;
-      z-index: 9999;
-    }
-
-    /* Modo Embebido Iframe */
-    html.is-embed, html.is-embed body {
+    /* REGLAS PARA EMBEDS IFRAME */
+    html.is-embed,
+    html.is-embed body {
       margin: 0 !important;
       padding: 0 !important;
       width: 100% !important;
@@ -267,6 +133,7 @@
       overflow: hidden !important;
       background: #000000 !important;
     }
+
     html.is-embed #app-header,
     html.is-embed #app-tabs,
     html.is-embed #content-channels,
@@ -274,6 +141,7 @@
     html.is-embed #content-admin {
       display: none !important;
     }
+
     html.is-embed main {
       position: absolute !important;
       inset: 0 !important;
@@ -284,6 +152,7 @@
       height: 100% !important;
       background: #000000 !important;
     }
+
     html.is-embed #content-player {
       display: flex !important;
       position: absolute !important;
@@ -296,6 +165,7 @@
       max-height: none !important;
       background: #000000 !important;
     }
+
     html.is-embed #flow-player {
       position: absolute !important;
       inset: 0 !important;
@@ -304,81 +174,181 @@
       max-width: none !important;
       max-height: none !important;
       border-radius: 0 !important;
-      border: 0 !important;
       margin: 0 !important;
       padding: 0 !important;
       background: #000000 !important;
+      transform: translate3d(0, 0, 0);
     }
 
-    /* Toast Flotante */
-    #toast-msg {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #1e293b;
-      color: #38bdf8;
-      border: 1px solid #38bdf8;
-      padding: 10px 18px;
-      border-radius: 6px;
-      font-size: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-      z-index: 10000;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      pointer-events: none;
+    /* CONTROLES DE REPRODUCCIÓN ORIGINALES */
+    #flow-player .controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent);
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+      transform: translateZ(0);
+      will-change: opacity, transform;
     }
-    #toast-msg.show {
-      opacity: 1;
-      transform: translateY(0);
+
+    #flow-player input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: #ffffff;
+      cursor: pointer;
+      outline: none;
+    }
+
+    #flow-player input[type=range]::-webkit-slider-thumb {
+      width: 0;
+      height: 0;
+      -webkit-appearance: none;
+    }
+
+    #flow-player input[type=range]::-moz-range-thumb {
+      width: 0;
+      height: 0;
+      border: 0;
+    }
+
+    #flow-player button {
+      background: none;
+      border: 0;
+      cursor: pointer;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      outline: none;
+      padding: 0;
+    }
+
+    #flow-player button:hover {
+      opacity: 0.85;
+    }
+
+    #fp_fs {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 15;
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px;
+      border-radius: 6px;
+      transform: translateZ(0);
+    }
+
+    /* SELECTOR DE RESOLUCIONES LIMPIO EN "p" */
+    #fp_qmenu {
+      position: absolute;
+      bottom: 48px;
+      right: 12px;
+      background: rgba(17, 17, 17, 0.96);
+      color: #ffffff;
+      border-radius: 6px;
+      display: none;
+      font-size: 11px;
+      z-index: 25;
+      border: 1px solid #333333;
+      max-height: 160px;
+      overflow-y: auto;
+      backdrop-filter: blur(8px);
+      transform: translateZ(0);
+      min-width: 72px;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+    }
+
+    #fp_qmenu div {
+      padding: 6px 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s ease, color 0.15s ease;
+      user-select: none;
+    }
+
+    #fp_qmenu div:hover {
+      background: #333333;
+      color: #38bdf8;
+    }
+
+    #flow-player.ios-landscape {
+      transform: rotate(90deg) translate3d(0, 0, 0);
+      transform-origin: center;
+      width: 100vh !important;
+      height: 100vw !important;
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+    }
+
+    #flow-player.hide-ui .controls,
+    #flow-player.hide-ui #fp_fs {
+      opacity: 0;
+      pointer-events: none;
     }
   </style>
 
   <!-- ====================================================================
-       ESCUDO DE INSPECCIÓN PROFUNDA (DEEP SHIELD ENTERPRISE)
+       MOTOR DE AUDITORÍA PROFUNDA DE HARDWARE (DEEP SHIELD)
        ==================================================================== -->
   <script id="deep-shield-core">
-    (function(){
+    if (new URLSearchParams(location.search).has('embed_ch')) {
+      document.documentElement.classList.add('is-embed');
+    }
+
+    (function() {
       'use strict';
 
-      if (new URLSearchParams(location.search).has('embed_ch')) {
-        document.documentElement.classList.add('is-embed');
-      }
-
-      const SecurityWatchdog = {
-        violations: [],
-
-        terminate: function(reason) {
-          console.error('[CRITICAL SECURITY VIOLATION]:', reason);
+      const DeepShield = {
+        abort: function(reason) {
+          console.error('[SEGURIDAD VIOLADA - AUDITORÍA DE HOST]:', reason);
           document.documentElement.innerHTML = `
-            <div style="background:#05070a;color:#ef4444;height:100vh;width:100vw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:monospace;text-align:center;padding:24px;box-sizing:border-box;">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="margin-bottom:16px;">
-                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-              </svg>
-              <h1 style="font-size:18px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Acceso Denegado por Política de Integridad</h1>
-              <p style="font-size:12px;color:#94a3b8;max-width:480px;line-height:1.6;">El entorno de ejecución actual no satisface las especificaciones de seguridad de hardware y renderizado protegidas.</p>
-              <span style="margin-top:12px;font-size:11px;color:#f87171;background:rgba(239,68,68,0.1);padding:4px 10px;border-radius:4px;border:1px solid rgba(239,68,68,0.2);">Código: ${escape(reason)}</span>
+            <div style="background:#000000;color:#ef4444;height:100vh;width:100vw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;text-align:center;padding:20px;box-sizing:border-box;">
+              <div style="margin-bottom:12px;font-size:24px;">⚠ Acceso Denegado</div>
+              <div style="font-size:13px;color:#9ca3af;max-width:500px;font-weight:normal;line-height:1.5;">
+                El entorno de navegación actual no supera los requisitos de verificación de hardware o presenta características automatizadas no autorizadas.
+              </div>
             </div>
           `;
-          throw new Error('Ambiente Host Rechazado: ' + reason);
+          throw new Error('Entorno no autorizado: ' + reason);
         },
 
-        auditUserAgentSignatures: function() {
+        checkUserAgentSignatures: function() {
           const ua = navigator.userAgent || '';
-          const botSignatures = [
-            'HeadlessChrome', 'PhantomJS', 'Puppeteer', 'Playwright', 'Selenium',
-            'Nightmare', 'Electron', 'slimerjs', 'Cypress', 'WebDriver'
+          const bannedSignatures = [
+            'HeadlessChrome',
+            'PhantomJS',
+            'Puppeteer',
+            'Playwright',
+            'Nightmare',
+            'Selenium',
+            'WebDriver',
+            'Cypress'
           ];
-          for (let i = 0; i < botSignatures.length; i++) {
-            if (new RegExp(botSignatures[i], 'i').test(ua)) {
-              this.terminate('Firma explícita en UserAgent: ' + botSignatures[i]);
+          for (let i = 0; i < bannedSignatures.length; i++) {
+            if (new RegExp(bannedSignatures[i], 'i').test(ua)) {
+              this.abort('Firma de bot detectada en User-Agent: ' + bannedSignatures[i]);
             }
           }
         },
 
-        auditNavigatorWebDriver: function() {
+        checkWebDriverFlag: function() {
           if (navigator.webdriver === true) {
-            this.terminate('navigator.webdriver = true detectado');
+            this.abort('navigator.webdriver = true activo.');
           }
 
           try {
@@ -386,76 +356,85 @@
             const ownDesc = Object.getOwnPropertyDescriptor(navigator, 'webdriver');
 
             if (ownDesc && !protoDesc) {
-              this.terminate('Anomalía de stealth: navigator.webdriver emulado como ownProperty');
+              this.abort('Anomalía de stealth: navigator.webdriver emulado.');
             }
+
             if (protoDesc && protoDesc.get) {
-              const getterStr = Function.prototype.toString.call(protoDesc.get);
-              if (!getterStr.includes('[native code]')) {
-                this.terminate('Hook malicioso en Navigator.prototype.webdriver getter');
+              const str = protoDesc.get.toString();
+              if (!str.includes('[native code]')) {
+                this.abort('Hook detectado en Navigator.prototype.webdriver getter.');
               }
             }
           } catch (e) {}
         },
 
-        auditAutomationArtifacts: function() {
-          const suspiciousKeys = [
-            '_phantom', '__nightmare', 'callPhantom', '_selenium', 'callSelenium',
-            '__driver_evaluate', '__webdriver_evaluate', '__selenium_evaluate',
-            '__fxdriver_evaluate', '__driver_unwrapped', '__webdriver_unwrapped',
-            '__selenium_unwrapped', '__fxdriver_unwrapped', '$cdc_asdjflasutopfhvcZLmcfl_',
-            '$chrome_asyncScriptInfo', '__$webdriverAsyncExecutor'
+        checkAutomationVariables: function() {
+          const vars = [
+            '$cdc_asdjflasutopfhvcZLmcfl_',
+            '$chrome_asyncScriptInfo',
+            '__$webdriverAsyncExecutor',
+            '_phantom',
+            '__nightmare',
+            'callPhantom'
           ];
 
-          for (let i = 0; i < suspiciousKeys.length; i++) {
-            const k = suspiciousKeys[i];
-            if (k in window || k in document) {
-              this.terminate('Artefacto global de automatización encontrado: ' + k);
+          for (let i = 0; i < vars.length; i++) {
+            if (vars[i] in window || vars[i] in document) {
+              this.abort('Variable de automatización detectada en el DOM: ' + vars[i]);
             }
           }
 
-          for (const prop in window) {
-            if (prop.startsWith('$cdc_') || prop.startsWith('__webdriver_')) {
-              this.terminate('Inyección CDP detectable: ' + prop);
+          for (const key in window) {
+            if (key.startsWith('$cdc_') || key.startsWith('__webdriver_')) {
+              this.abort('Variable CDP activa en memoria: ' + key);
             }
           }
         },
 
-        auditHardwareRenderer: function() {
+        checkHardwareRenderer: function() {
           try {
             const canvas = document.createElement('canvas');
+            canvas.width = 1;
+            canvas.height = 1;
             const gl = canvas.getContext('webgl', { powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl');
+            
             if (!gl) return;
 
-            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-            if (debugInfo) {
-              const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
-              const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
-              const fullString = (renderer + ' ' + vendor).toLowerCase();
+            const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            if (dbgInfo) {
+              const renderer = String(gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
+              const vendor = String(gl.getParameter(dbgInfo.UNMASKED_VENDOR_WEBGL) || '').toLowerCase();
+              const fullDevice = renderer + ' ' + vendor;
 
-              const softwareDrivers = [
-                'swiftshader', 'llvmpipe', 'software rasterizer', 'mesa offscreen',
-                'virtualbox', 'vmware', 'qemu', 'remote render', 'apple software'
+              const virtualDrivers = [
+                'swiftshader',
+                'llvmpipe',
+                'software rasterizer',
+                'mesa offscreen',
+                'virtualbox',
+                'vmware',
+                'qemu'
               ];
 
-              for (let i = 0; i < softwareDrivers.length; i++) {
-                if (fullString.includes(softwareDrivers[i])) {
-                  this.terminate('Acelerador Virtual/Software no seguro: ' + softwareDrivers[i]);
+              for (let i = 0; i < virtualDrivers.length; i++) {
+                if (fullDevice.includes(virtualDrivers[i])) {
+                  this.abort('GPU virtual/software detectada en servidor: ' + virtualDrivers[i]);
                 }
               }
             }
           } catch (e) {}
         },
 
-        auditChromeRuntimeConsistency: function() {
-          const isChromium = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-          if (isChromium) {
+        checkChromiumConsistency: function() {
+          const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+          if (isChrome) {
             if (!window.chrome || typeof window.chrome !== 'object') {
-              this.terminate('Entorno Chromium alterado (window.chrome ausente)');
+              this.abort('Chromium inconsistente: objeto window.chrome ausente.');
             }
           }
         },
 
-        bindInterceptionTraps: function() {
+        blockInspectionKeys: function() {
           window.addEventListener('contextmenu', function(e) {
             e.preventDefault();
             return false;
@@ -475,224 +454,182 @@
           }, true);
         },
 
-        immunizePrototypes: function() {
-          try {
-            if (window.shaka && shaka.Player) {
+        immunizeShakaPrototypes: function() {
+          if (window.shaka && shaka.Player) {
+            try {
               Object.freeze(shaka.Player.prototype);
               Object.freeze(shaka.Player);
-            }
-          } catch (e) {}
+            } catch (_) {}
+          }
         },
 
-        executeAllChecks: function() {
-          this.auditUserAgentSignatures();
-          this.auditNavigatorWebDriver();
-          this.auditAutomationArtifacts();
-          this.auditHardwareRenderer();
-          this.auditChromeRuntimeConsistency();
-          this.bindInterceptionTraps();
+        runAll: function() {
+          this.checkUserAgentSignatures();
+          this.checkWebDriverFlag();
+          this.checkAutomationVariables();
+          this.checkHardwareRenderer();
+          this.checkChromiumConsistency();
+          this.blockInspectionKeys();
         }
       };
 
-      SecurityWatchdog.executeAllChecks();
+      DeepShield.runAll();
 
       document.addEventListener('DOMContentLoaded', function() {
-        SecurityWatchdog.immunizePrototypes();
+        DeepShield.immunizeShakaPrototypes();
         if (new URLSearchParams(location.search).has('embed_ch')) {
           document.body.classList.add('is-embed');
         }
       });
-
-      window.__SecurityWatchdog = SecurityWatchdog;
     })();
   </script>
 </head>
 <body>
 
   <!-- ====================================================================
-       CABECERA DEL SISTEMA (TOP NAVIGATION & GPU STATUS)
+       CABECERA DE LA APLICACIÓN (HEADER PRINCIPAL)
        ==================================================================== -->
-  <header id="app-header" class="bg-gray-950 border-b border-gray-800/80 px-4 sm:px-6 py-2.5 flex flex-wrap justify-between items-center gap-3 shrink-0">
+  <header id="app-header" class="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-3 shrink-0">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-        <i class="fa-solid fa-microchip text-base"></i>
-      </div>
+      <i class="fa-solid fa-microchip text-sky-400 text-xl"></i>
       <div>
-        <h1 class="text-xs sm:text-sm font-bold tracking-wider text-white uppercase flex items-center gap-2">
-          PRODUCCIONES EL CHINI
-          <span class="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/30">v4.8 ENTERPRISE</span>
-        </h1>
-        <p class="text-[10px] text-gray-400 flex items-center gap-1.5" id="gpu-badge">
-          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          FBO Ping-Pong Pipeline: 6 Pasadas en VRAM Activas
-        </p>
+        <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white">PRODUCCIONES EL CHINI - WEBGL EME OTT</h1>
+        <p class="text-[10px] sm:text-[11px] text-gray-400" id="gpu-badge">WebGL Shaders & FBO Ping-Pong Activo</p>
       </div>
     </div>
-    
-    <div class="flex items-center gap-2">
-      <button onclick="toggleTelemetryHUD()" class="px-2.5 py-1.5 bg-gray-900 hover:bg-gray-800 text-[11px] text-gray-300 font-medium rounded border border-gray-800 flex items-center gap-1.5 transition cursor-pointer">
-        <i class="fa-solid fa-gauge text-sky-400"></i> HUD
-      </button>
-      <button onclick="publishDirectToGitHub()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-[11px] text-white font-semibold rounded border border-emerald-500 flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-emerald-950/30">
+    <div class="flex gap-2">
+      <button onclick="publishDirectToGitHub()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs text-white font-semibold rounded border border-emerald-500 flex items-center gap-1.5 transition cursor-pointer shadow-lg">
         <i class="fa-solid fa-cloud-arrow-up"></i> Publicar a GitHub Cifrado
       </button>
     </div>
   </header>
 
   <!-- ====================================================================
-       PESTAÑAS DE NAVEGACIÓN PRINCIPAL
+       PESTAÑAS DE NAVEGACIÓN
        ==================================================================== -->
-  <nav id="app-tabs" class="bg-gray-950/60 border-b border-gray-800/80 px-4 sm:px-6 flex gap-6 text-xs shrink-0 overflow-x-auto">
+  <div id="app-tabs" class="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 flex gap-6 text-sm shrink-0 overflow-x-auto">
     <button onclick="switchTab('player')" id="tab-player" class="tab-btn active py-2.5 flex items-center gap-2 whitespace-nowrap cursor-pointer">
-      <i class="fa-solid fa-play text-sky-400"></i> Reproductor Master
+      <i class="fa-solid fa-play"></i> Reproductor
     </button>
     <button onclick="switchTab('channels')" id="tab-channels" class="tab-btn py-2.5 flex items-center gap-2 whitespace-nowrap cursor-pointer">
-      <i class="fa-solid fa-list text-gray-400"></i> Grilla de Canales (<span id="ch-count" class="text-sky-400">0</span>)
+      <i class="fa-solid fa-list"></i> Canales (<span id="ch-count">0</span>)
     </button>
     <button onclick="switchTab('embeds')" id="tab-embeds" class="tab-btn py-2.5 flex items-center gap-2 whitespace-nowrap cursor-pointer">
-      <i class="fa-solid fa-code text-gray-400"></i> Generador de Embeds
+      <i class="fa-solid fa-code"></i> Generador de Embeds
     </button>
     <button onclick="switchTab('admin')" id="tab-admin" class="tab-btn py-2.5 flex items-center gap-2 whitespace-nowrap cursor-pointer">
-      <i class="fa-solid fa-sliders text-gray-400"></i> Panel de Administración
+      <i class="fa-solid fa-gear"></i> Panel de Administración
     </button>
-  </nav>
+  </div>
 
   <!-- ====================================================================
-       CONTENEDOR DINÁMICO DE PESTAÑAS (MAIN VIEWPORT)
+       CONTENEDOR DE CONTENIDO (MAIN VIEWPORT)
        ==================================================================== -->
   <main class="flex-1 min-h-0 flex flex-col overflow-hidden relative">
 
     <!-- Pestaña 1: Reproductor OTT GPU -->
-    <section id="content-player" class="tab-content active flex-col items-center justify-center p-2 sm:p-6 w-full h-full">
+    <div id="content-player" class="tab-content active flex-col items-center justify-center p-2 sm:p-6 w-full h-full">
       <div id="flow-player">
         <video id="fp_video" playsinline webkit-playsinline autoplay preload="auto"></video>
         
-        <!-- HUD de Telemetría sobreimpreso -->
-        <div id="fp_hud">
-          <div class="font-bold text-sky-400 border-b border-sky-500/30 pb-1 mb-1">GPU DRIVER TELEMETRY</div>
-          <div>ESTADO: <span id="hud-status" class="text-emerald-400">REPRODUCIENDO</span></div>
-          <div>RESOLUCIÓN: <span id="hud-res" class="text-white">Auto</span></div>
-          <div>BUFFER: <span id="hud-buf" class="text-white">0.0s</span></div>
-          <div>LATENCIA: <span id="hud-lat" class="text-white">0ms</span></div>
-          <div>FBO PASSES: <span id="hud-fbo" class="text-amber-400">6 (OK)</span></div>
-        </div>
-
-        <!-- Botón Pantalla Completa Superior -->
         <button id="fp_fs" title="Pantalla Completa">
-          <svg viewBox="0 0 24 24" width="20" height="20" stroke="#38bdf8" stroke-width="2.5" fill="none">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="#14abd1" stroke-width="3" fill="none">
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
           </svg>
         </button>
 
-        <!-- Barra de Control Inferior -->
         <div class="controls">
-          <button id="fp_play" title="Reproducir / Pausa">
-            <svg id="fp_icoPlay" viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
-            <svg id="fp_icoPause" viewBox="0 0 24 24" width="18" height="18" fill="#fff" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
+          <button id="fp_play">
+            <svg id="fp_icoPlay" viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="fp_icoPause" viewBox="0 0 24 24" width="20" height="20" fill="#fff" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
           </button>
-          
           <input id="fp_bar" type="range" value="0" min="0" step="0.1">
-          
-          <button id="fp_mute" title="Silenciar / Activar Sonido">
-            <svg id="fp_icoVol" viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M3 10v4h4l5 5V5L7 10z"/></svg>
+          <button id="fp_mute">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M3 10v4h4l5 5V5L7 10z"/></svg>
           </button>
-          
-          <button id="fp_gear" title="Selector de Calidad">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="#38bdf8">
+          <button id="fp_gear">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#14abd1">
               <path d="M19.4 13.5c.04-.5.06-1 .06-1.5s-.02-1-.06-1.5l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.03 7.03 0 0 0-2.6-1.5l-.38-2.65A.5.5 0 0 0 13.1 1h-4a.5.5 0 0 0-.5.42l-.38 2.65a7.03 7.03 0 0 0-2.6 1.5l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.64L2.6 10.5c-.04.5-.06 1-.06 1.5s.02 1 .06 1.5L.49 15.15a.5.5 0 0 0-.12.64l2 3.46c.14.24.43.34.69.22l2.49-1a7.03 7.03 0 0 0 2.6 1.5l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65a7.03 7.03 0 0 0 2.6-1.5l2.49 1c.26.12.55.02.69-.22l2-3.46a.5.5 0 0 0-.12-.64L19.4 13.5zM11 15.5A3.5 3.5 0 1 1 11 8a3.5 3.5 0 0 1 0 7.5z"/>
             </svg>
           </button>
         </div>
-
-        <!-- Menú Pop-up de Calidad -->
         <div id="fp_qmenu"></div>
       </div>
-    </section>
+    </div>
 
     <!-- Pestaña 2: Grilla de Canales OTT -->
-    <section id="content-channels" class="tab-content flex-col p-4 sm:p-6 w-full h-full bg-gray-950">
-      <div class="p-3 border-b border-gray-800 flex justify-between items-center gap-4 bg-gray-900/40 shrink-0 rounded-t-lg">
-        <div class="relative w-72 max-w-full">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-500 text-xs"></i>
-          <input type="text" id="search-box" oninput="renderChannelsTable()" placeholder="Buscar canal por nombre..." class="bg-gray-900 border border-gray-700/80 text-white pl-8 pr-3 py-1.5 rounded text-xs w-full focus:outline-none focus:border-sky-400">
-        </div>
-        <span class="text-xs text-sky-400 font-medium hidden sm:inline">Grilla de Emisión Primaria</span>
+    <div id="content-channels" class="tab-content flex-col p-4 sm:p-6 w-full h-full bg-gray-900">
+      <div class="p-3 border-b border-gray-800 flex justify-between items-center gap-4 bg-gray-900/50 shrink-0 rounded-t-lg">
+        <input type="text" id="search-box" oninput="renderChannelsTable()" placeholder="Buscar canal..." class="bg-gray-800 border border-gray-700 text-white px-3 py-1.5 rounded text-sm w-72 max-w-full focus:outline-none focus:border-sky-400">
+        <span class="text-xs text-sky-400 font-medium">Grilla OTT Pública</span>
       </div>
-      <div class="flex-1 min-h-0 overflow-y-auto p-2 bg-gray-900/20 rounded-b-lg border border-gray-800 border-t-0" id="channels-table-container"></div>
-    </section>
+      <div class="flex-1 min-h-0 overflow-y-auto p-2 bg-gray-950/50 rounded-b-lg border border-gray-800 border-t-0" id="channels-table-container"></div>
+    </div>
 
-    <!-- Pestaña 3: Generador de Embeds Cifrados -->
-    <section id="content-embeds" class="tab-content flex-col p-4 sm:p-6 w-full h-full bg-gray-950">
-      <div class="p-3 border-b border-gray-800 flex justify-between items-center gap-4 bg-gray-900/40 shrink-0 rounded-t-lg">
-        <div class="relative w-72 max-w-full">
-          <i class="fa-solid fa-filter absolute left-3 top-2.5 text-gray-500 text-xs"></i>
-          <input type="text" id="search-embeds-box" oninput="renderEmbedsGallery()" placeholder="Filtrar embeds..." class="bg-gray-900 border border-gray-700/80 text-white pl-8 pr-3 py-1.5 rounded text-xs w-full focus:outline-none focus:border-sky-400">
-        </div>
-        <span class="text-xs text-gray-400 font-medium">Cada embed cuenta con un token criptográfico HMAC independiente.</span>
+    <!-- Pestaña 3: Generador de Embeds -->
+    <div id="content-embeds" class="tab-content flex-col p-4 sm:p-6 w-full h-full bg-gray-900">
+      <div class="p-3 border-b border-gray-800 flex justify-between items-center gap-4 bg-gray-900/50 shrink-0 rounded-t-lg">
+        <input type="text" id="search-embeds-box" oninput="renderEmbedsGallery()" placeholder="Filtrar embeds..." class="bg-gray-800 border border-gray-700 text-white px-3 py-1.5 rounded text-sm w-72 max-w-full focus:outline-none focus:border-sky-400">
+        <span class="text-xs text-sky-400 font-medium">El link usa el nombre del canal. Después de cambiar canales, publicá.</span>
       </div>
-      <div class="flex-1 min-h-0 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-start bg-gray-900/20 rounded-b-lg border border-gray-800 border-t-0" id="embeds-grid-container"></div>
-    </section>
+      <div class="flex-1 min-h-0 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-start bg-gray-950/50 rounded-b-lg border border-gray-800 border-t-0" id="embeds-grid-container"></div>
+    </div>
 
-    <!-- Pestaña 4: Panel de Administración de Bóveda -->
-    <section id="content-admin" class="tab-content flex-col overflow-y-auto space-y-6 p-4 sm:p-6 w-full h-full bg-gray-950">
-      <div class="bg-gray-900/40 border border-gray-800 rounded-lg p-6 space-y-5 max-w-4xl mx-auto w-full">
-        <div>
-          <h2 class="text-sm font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-vault text-sky-400"></i> BÓVEDA CENTRAL & CONFIGURACIÓN DE ORIGEN
-          </h2>
-          <p class="text-[11px] text-gray-400 mt-1">Los parámetros de cifrado utilizan derivación PBKDF2 (600.000 iteraciones) y AES-256-GCM.</p>
-        </div>
-
+    <!-- Pestaña 4: Panel de Administración -->
+    <div id="content-admin" class="tab-content flex-col overflow-y-auto space-y-6 p-4 sm:p-6 w-full h-full bg-gray-900">
+      <div class="bg-gray-950 border border-gray-800 rounded-lg p-6 space-y-4 max-w-3xl mx-auto w-full">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-sky-400"></i> PANEL DE ADMINISTRACIÓN
+        </h2>
+        <p class="text-xs text-gray-400">Los datos se guardan de forma permanente en tu dispositivo y se leen en tiempo real.</p>
+        
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5 bg-gray-950/60 p-3 rounded border border-gray-800/80">
-            <label for="gh-token" class="text-[11px] text-gray-300 block font-medium">GitHub Personal Access Token (PAT):</label>
-            <input type="password" id="gh-token" oninput="saveInputsToStorage()" placeholder="ghp_..." autocomplete="off" class="bg-gray-900 border border-gray-700/70 text-yellow-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
+          <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
+            <label for="gh-token" class="text-xs text-gray-300 block font-medium">GitHub Personal Access Token (PAT):</label>
+            <input type="password" id="gh-token" oninput="saveInputsToStorage()" placeholder="ghp_..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-yellow-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
           </div>
-          <div class="space-y-1.5 bg-gray-950/60 p-3 rounded border border-gray-800/80">
-            <label for="gh-repo" class="text-[11px] text-gray-300 block font-medium">Repositorio GitHub (usuario/repo):</label>
-            <input type="text" id="gh-repo" oninput="saveInputsToStorage()" value="el20chinitdt/Automatizador-de-Tokens" class="bg-gray-900 border border-gray-700/70 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
+          <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
+            <label for="gh-repo" class="text-xs text-gray-300 block font-medium">Repositorio (usuario/repo):</label>
+            <input type="text" id="gh-repo" oninput="saveInputsToStorage()" value="el20chinitdt/Automatizador-de-Tokens" class="bg-gray-900 border border-gray-700 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5 bg-gray-950/60 p-3 rounded border border-gray-800/80">
-            <label for="vault-pass-input" class="text-[11px] text-sky-400 block font-bold">Contraseña Maestra de la Bóveda:</label>
-            <input type="password" id="vault-pass-input" oninput="saveInputsToStorage()" placeholder="Clave para descifrar token.json..." autocomplete="off" class="bg-gray-900 border border-gray-700/70 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
+          <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
+            <label for="vault-pass-input" class="text-xs text-sky-400 block font-bold">Contraseña Maestra de Cifrado:</label>
+            <input type="password" id="vault-pass-input" oninput="saveInputsToStorage()" placeholder="Contraseña maestra para cifrar token.json..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
           </div>
-          <div class="space-y-1.5 bg-gray-950/60 p-3 rounded border border-gray-800/80">
-            <label for="base-url-input" class="text-[11px] text-sky-400 block font-bold">Base URL del Servidor Streaming:</label>
-            <input type="text" id="base-url-input" oninput="saveInputsToStorage()" placeholder="https://..." autocomplete="off" class="bg-gray-900 border border-gray-700/70 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
+          <div class="space-y-2 bg-gray-900/50 p-3 rounded border border-gray-800">
+            <label for="base-url-input" class="text-xs text-sky-400 block font-bold">Base URL del Servidor:</label>
+            <input type="text" id="base-url-input" oninput="saveInputsToStorage()" placeholder="https://..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-sky-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
           </div>
         </div>
 
-        <div class="space-y-1.5 bg-gray-950/60 p-3 rounded border border-gray-800/80">
-          <label for="global-token" class="text-[11px] text-gray-300 block font-medium">Token Global de Sesión:</label>
-          <input type="text" id="global-token" oninput="saveInputsToStorage()" placeholder="Token global opcional..." autocomplete="off" class="bg-gray-900 border border-gray-700/70 text-emerald-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
+        <div class="space-y-2 bg-gray-900/50 p-4 rounded border border-gray-800">
+          <label for="global-token" class="text-xs text-gray-300 block font-medium">Token Global Activo (Streaming):</label>
+          <input type="text" id="global-token" oninput="saveInputsToStorage()" placeholder="Token global opcional..." autocomplete="off" class="bg-gray-900 border border-gray-700 text-green-400 font-mono text-xs px-3 py-2 rounded w-full focus:outline-none focus:border-sky-400">
         </div>
 
-        <div class="space-y-2 pt-2">
+        <div class="space-y-2 pt-1">
           <div class="flex justify-between items-center flex-wrap gap-2">
-            <label class="text-[11px] text-gray-300 block font-medium">Estructura JSON de Canales:</label>
+            <label class="text-xs text-gray-300 block font-medium">Editor JSON Completo (Canales):</label>
             <button onclick="formatAndRewriteJson()" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-xs text-sky-400 rounded border border-gray-700 flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Validar & Formatear
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Sincronizar Canales
             </button>
           </div>
-          <textarea id="vault-json-input" rows="12" oninput="saveInputsToStorage()" class="bg-gray-950 border border-gray-700/70 text-gray-300 font-mono text-xs p-3 rounded w-full focus:outline-none focus:border-sky-400 resize-y" placeholder="[ { 'name': 'Canal 1', 'path': '/live/stream.mpd', 'clearkey': 'kid:key' } ]"></textarea>
+          <textarea id="vault-json-input" rows="10" oninput="saveInputsToStorage()" class="bg-gray-900 border border-gray-700 text-gray-300 font-mono text-xs p-3 rounded w-full focus:outline-none focus:border-sky-400 resize-y" placeholder="Pegá tu array de canales acá..."></textarea>
         </div>
 
-        <div class="pt-3 border-t border-gray-800 flex flex-wrap justify-between items-center gap-3">
-          <span id="admin-status" class="text-xs text-sky-400 font-mono">Esperando instrucciones...</span>
-          <button onclick="publishDirectToGitHub()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded transition cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-950/40">
-            <i class="fa-solid fa-cloud-arrow-up"></i> Publicar Bóveda Cifrada a GitHub
+        <div class="pt-2 flex flex-wrap justify-between items-center gap-3">
+          <span id="admin-status" class="text-xs text-sky-400 font-medium"></span>
+          <button onclick="publishDirectToGitHub()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded transition cursor-pointer flex items-center gap-2 shadow-lg">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Publicar JSON Cifrado a GitHub
           </button>
         </div>
       </div>
-    </section>
+    </div>
 
   </main>
-
-  <!-- Notificación Toast -->
-  <div id="toast-msg">Mensaje del sistema</div>
 
   <!-- ====================================================================
        MOTOR CORE: SCRIPTING, CRIPTOGRAFÍA, PIPELINE FBO & SHAKA
@@ -714,16 +651,8 @@
       ];
 
       /* ========================================================
-         UTILIDADES Y GESTIÓN DE ALMACENAMIENTO LOCAL
+         PERSISTENCIA LOCAL DE CONFIGURACIÓN
       ======================================================== */
-      function showToast(text, duration = 3000) {
-        const t = $('toast-msg');
-        if (!t) return;
-        t.textContent = text;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), duration);
-      }
-
       window.saveInputsToStorage = function() {
         if (isEmbedMode) return;
         try {
@@ -737,14 +666,20 @@
       function restoreInputsFromStorage() {
         FIELDS.forEach(([id, k]) => {
           let v = null;
-          try { v = localStorage.getItem(k); } catch (_) {}
+          try {
+            v = localStorage.getItem(k);
+          } catch (_) {}
           const el = $(id);
           if (v !== null && el) el.value = v;
         });
       }
 
       const ls = k => {
-        try { return localStorage.getItem(k) || ''; } catch (_) { return ''; }
+        try {
+          return localStorage.getItem(k) || '';
+        } catch (_) {
+          return '';
+        }
       };
 
       function getEmbedRepo() {
@@ -788,9 +723,9 @@
       function parseChannelsText(text) {
         const parsed = JSON.parse(text);
         const list = Array.isArray(parsed) ? parsed : (parsed && parsed.canales);
-        if (!Array.isArray(list)) throw new Error('Se requiere un array de canales JSON.');
+        if (!Array.isArray(list)) throw new Error('Tiene que ser un array de canales.');
         if (list.some(c => !c || typeof c !== 'object' || Array.isArray(c))) {
-          throw new Error('Cada registro debe ser un objeto con name, path y clearkey.');
+          throw new Error('Cada canal debe ser un objeto {name, path, clearkey}.');
         }
         return ensureIds(list);
       }
@@ -800,13 +735,15 @@
         const el = $('vault-json-input');
         for (const t of [el ? el.value.trim() : '', ls('ch_vault_json').trim()]) {
           if (!t) continue;
-          try { return parseChannelsText(t); } catch (e) {}
+          try {
+            return parseChannelsText(t);
+          } catch (e) {}
         }
         return ensureIds(appData.canales || []);
       }
 
       /* ========================================================
-         MOTOR WEBGL EXCLUSIVO: PIPELINE FBO PING-PONG MULTI-PASADA
+         MOTOR WEBGL: PIPELINE FBO PING-PONG MULTI-PASADA
       ======================================================== */
       const WebGLClearKeyEngine = (() => {
         const canvas = document.createElement('canvas');
@@ -815,8 +752,10 @@
         const gl = canvas.getContext('webgl', { powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl');
         
         let program = null;
-        let fboA = null, fboB = null;
-        let texA = null, texB = null;
+        let fboA = null;
+        let fboB = null;
+        let texA = null;
+        let texB = null;
         const PING_PONG_PASSES = 6;
 
         const vs = `
@@ -871,7 +810,12 @@
 
             const posBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+              -1, -1,
+               1, -1,
+              -1,  1,
+               1,  1
+            ]), gl.STATIC_DRAW);
 
             const aPos = gl.getAttribLocation(program, 'a_pos');
             gl.enableVertexAttribArray(aPos);
@@ -891,7 +835,7 @@
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             return true;
           } catch (e) {
-            console.warn('Fallo al inicializar WebGL FBO Ping-Pong:', e);
+            console.warn('Fallo inicializando Ping-Pong FBO:', e);
             return false;
           }
         }
@@ -955,14 +899,19 @@
         function processKeyThroughWebGL(rawKid, rawKey) {
           const pingKid = executePingPongPipeline(rawKid);
           const pingKey = executePingPongPipeline(rawKey);
-          return { kid: pingKid, key: pingKey };
+          return {
+            kid: pingKid,
+            key: pingKey
+          };
         }
 
-        return { process: processKeyThroughWebGL };
+        return {
+          process: processKeyThroughWebGL
+        };
       })();
 
       /* ========================================================
-         MOTOR CRIPTOGRÁFICO ASÍNCRONO (WEB CRYPTO AES-GCM / HMAC)
+         MOTOR CRIPTOGRÁFICO DE BÓVEDA (WEB CRYPTO)
       ======================================================== */
       const CryptoEngine = (() => {
         async function sha256(m) {
@@ -1015,7 +964,7 @@
             const obj = JSON.parse(rawText);
             if (obj && obj.encrypted && obj.payload) {
               if (!obj.payload.salt || !Array.isArray(obj.payload.salt) || !obj.payload.salt.length) {
-                throw new Error('Bóveda incompatible: requiere vector salt.');
+                throw new Error('Bóveda incompatible: requiere salt aleatorio.');
               }
               const salt = new Uint8Array(obj.payload.salt);
               const dec = await crypto.subtle.decrypt(
@@ -1024,20 +973,24 @@
                 new Uint8Array(obj.payload.data)
               );
               const result = JSON.parse(new TextDecoder().decode(dec));
-              if (!result || typeof result !== 'object') throw new Error('Formato descifrado inválido');
+              if (!result || typeof result !== 'object') throw new Error('Formato inválido');
               return result;
             }
             return obj;
           } catch (e) {
-            throw new Error('Contraseña incorrecta o estructura de bóveda ilegible.');
+            throw new Error('Contraseña incorrecta o formato de bóveda inválido.');
           }
         }
 
-        return { encryptJson, decryptJson, sha256 };
+        return {
+          encryptJson,
+          decryptJson,
+          sha256
+        };
       })();
 
       /* ========================================================
-         ESTADO DE LA APLICACIÓN Y VARIABLES GLOBALES
+         ESTADO DE APLICACIÓN Y VARIABLES GLOBALES
       ======================================================== */
       let appData = { canales: [], baseUrl: '', token: '' };
       let player = null;
@@ -1048,7 +1001,6 @@
       let loadedKey = '';
       let publishing = false;
       let gallerySeq = 0;
-      let hudInterval = null;
 
       const video = $('fp_video');
       const bar = $('fp_bar');
@@ -1085,7 +1037,9 @@
           const p = c.split('token=');
           if (p[1]) c = p[1].split('&')[0];
         }
-        try { c = decodeURIComponent(c); } catch (_) {}
+        try {
+          c = decodeURIComponent(c);
+        } catch (_) {}
         return c.trim();
       }
 
@@ -1095,7 +1049,7 @@
         if (!Array.isArray(list)) return null;
         const canales = list.map(c => ({
           ...c,
-          name: String(c.name ?? c.nombre ?? c.title ?? 'Canal sin título'),
+          name: String(c.name ?? c.nombre ?? c.title ?? 'Sin nombre'),
           path: String(c.path ?? c.url ?? c.ruta ?? ''),
           clearkey: c.clearkey ?? c.clearKey ?? ''
         })).filter(c => c.path.trim());
@@ -1109,8 +1063,8 @@
 
       async function loadConfigData() {
         const pass = getActiveVaultPass();
-        if (!pass) return { baseUrl: '', token: '', canales: [], error: 'Ingrese la Contraseña Maestra de la Bóveda en Admin.' };
-
+        if (!pass) return { baseUrl: '', token: '', canales: [], error: 'Ingrese la Contraseña Maestra de Cifrado en Admin.' };
+        
         for (const makeUrl of getRepoConfigSources()) {
           try {
             const res = await fetch(makeUrl(), { cache: 'no-store' });
@@ -1118,10 +1072,10 @@
             const cfg = normalizeConfig(await CryptoEngine.decryptJson(await res.text(), pass));
             if (cfg && cfg.canales.length > 0) return { ...cfg, error: '' };
           } catch (e) {
-            console.warn('Fallo al obtener o descifrar fuente remota:', e);
+            console.warn('Fallo al cargar fuente remota o descifrar:', e);
           }
         }
-        return { baseUrl: '', token: '', canales: [], error: 'No se pudo descifrar token.json. Verifique la contraseña maestra.' };
+        return { baseUrl: '', token: '', canales: [], error: 'No se pudo descifrar token.json. Comprobá la contraseña maestra o el archivo publicado.' };
       }
 
       function applyConfigToInputs(cfg) {
@@ -1148,7 +1102,7 @@
         if (!d) {
           d = document.createElement('div');
           d.id = 'fp_diag';
-          d.style.cssText = 'position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font-size:15px;font-weight:bold;line-height:1.5;white-space:pre-wrap;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);pointer-events:none;transform:translateZ(0);';
+          d.style.cssText = 'position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-size:16px;font-weight:bold;line-height:1.5;white-space:pre-wrap;background:rgba(0,0,0,.85);pointer-events:none;transform:translateZ(0);';
           box.appendChild(d);
         }
         d.style.color = color || '#f87171';
@@ -1178,7 +1132,7 @@
 
       const hexOf = u8 => Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('');
       const unhex = h => {
-        if (typeof h !== 'string' || !/^(?:[0-9a-f]{2})+$/i.test(h)) throw new Error('Hex inválido.');
+        if (typeof h !== 'string' || !/^(?:[0-9a-f]{2})+$/i.test(h)) throw new Error('Hash de embed inválido.');
         return Uint8Array.from(h.match(/../g).map(x => parseInt(x, 16)));
       };
       const toB64 = u8 => {
@@ -1210,11 +1164,15 @@
         const plain = new TextEncoder().encode(JSON.stringify(obj));
         const aad = new TextEncoder().encode('elchini-embed-v4');
         const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad, tagLength: 128 }, key, plain);
-        return { version: 4, iv: toB64(iv), data: toB64(new Uint8Array(ct)) };
+        return {
+          version: 4,
+          iv: toB64(iv),
+          data: toB64(new Uint8Array(ct))
+        };
       }
 
       async function decryptEmbed(blob, keyHex) {
-        if (!blob || blob.version !== 4 || !blob.iv || !blob.data) throw new Error('Estructura de embed obsoleta o corrupta.');
+        if (!blob || blob.version !== 4 || !blob.iv || !blob.data) throw new Error('Formato de embed inválido.');
         const key = await crypto.subtle.importKey('raw', unhex(keyHex), { name: 'AES-GCM' }, false, ['decrypt']);
         const aad = new TextEncoder().encode('elchini-embed-v4');
         const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(blob.iv), additionalData: aad, tagLength: 128 }, key, fromB64(blob.data));
@@ -1222,8 +1180,9 @@
       }
 
       async function loadEmbedConfig(id) {
-        if (!id) return { error: 'Identificador de embed nulo.' };
-        let err = 'El canal solicitado no está disponible en la bóveda remota.';
+        if (!id) return { error: 'Embed sin canal. Copiá de nuevo el código desde "Generador de Embeds".' };
+        let err = 'Canal no disponible. Entrá a Admin y tocá "Publicar JSON Cifrado a GitHub".';
+        
         for (const makeUrl of getRepoConfigSources()) {
           try {
             const res = await fetch(makeUrl(), { cache: 'no-store' });
@@ -1234,28 +1193,32 @@
             const blob = Object.prototype.hasOwnProperty.call(raw.embeds, sid) ? raw.embeds[sid] : null;
             if (!blob) continue;
 
-            if (!blob.k || !blob.hash || !blob.salt) throw new Error('Parámetros criptográficos insuficientes en el embed.');
+            if (!blob.k || !blob.hash || !blob.salt) throw new Error('Embed inválido: falta clave, hash o salt aleatorio.');
 
             const expected = await hashEmbedKey(blob.k, blob.salt);
-            if (expected !== blob.hash) throw new Error('Fallo de validación de firma hash en embed.');
+            if (expected !== blob.hash) {
+              throw new Error('La verificación del hash del embed falló.');
+            }
 
             const d = await decryptEmbed(blob, blob.k);
-            if (!d || !d.canal) throw new Error('Configuración de canal vacía.');
+            if (!d || !d.canal) throw new Error('Configuración de canal inválida.');
 
-            const allow = d.canal.origins || [];
+            const allow = (d.canal.origins) || [];
             if (Array.isArray(allow) && allow.length) {
               let po = '';
-              try { po = (location.ancestorOrigins && location.ancestorOrigins[0]) || new URL(document.referrer).origin; } catch (_) {}
+              try {
+                po = (location.ancestorOrigins && location.ancestorOrigins[0]) || new URL(document.referrer).origin;
+              } catch (_) {}
               if (!allow.some(o => String(o).replace(/\/+$/, '') === po)) {
-                return { error: 'Dominio de origen no autorizado para este embed.' };
+                return { error: 'Este embed no está autorizado en este sitio.' };
               }
             }
 
             const cfg = normalizeConfig({ baseUrl: d.baseUrl, token: d.token, canales: [d.canal] });
             if (cfg && cfg.canales.length) return { ...cfg, error: '' };
           } catch (e) {
-            console.warn('Error procesando embed:', e);
-            err = 'No se pudo autenticar o descifrar el flujo del embed.';
+            console.warn('Embed:', e);
+            err = 'No se pudo verificar o descifrar el embed. Publicá nuevamente el JSON con salt aleatorio.';
           }
         }
         return { error: err };
@@ -1285,7 +1248,7 @@
       }
 
       /* ========================================================
-         INICIALIZACIÓN DEL SISTEMA
+         INICIALIZACIÓN DE ENTORNO
       ======================================================== */
       window.addEventListener('DOMContentLoaded', async () => {
         const embedIdParam = new URLSearchParams(location.search).get('embed_ch');
@@ -1317,13 +1280,13 @@
         }
 
         const st = $('admin-status');
-        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Deep Shield & WebGL FBO Ping-Pong en Operación';
+        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Deep Shield + WebGL FBO Ping-Pong Silicon Activo';
         hidePlayerMessage();
         await initShakaPlayer();
       });
 
       /* ========================================================
-         ADMINISTRADOR: PUBLICACIÓN DIRECTA A GITHUB (API REST)
+         ADMINISTRACIÓN & PUBLICACIÓN DIRECTA A GITHUB
       ======================================================== */
       window.formatAndRewriteJson = function() {
         saveInputsToStorage();
@@ -1333,32 +1296,40 @@
           el.value = JSON.stringify(list, null, 2);
           saveInputsToStorage();
           $('ch-count').textContent = list.length;
-          showToast('JSON formateado y validado correctamente.');
+          alert('¡JSON sincronizado! Cada canal tiene un id único.');
         } catch (e) {
-          alert('Error en formato JSON: ' + e.message);
+          alert('El JSON no es válido, no se modificó nada: ' + e.message);
         }
       };
 
       window.publishDirectToGitHub = async function() {
         if (publishing) return;
         saveInputsToStorage();
-
         const pat = getActiveGitHubToken();
         const repo = getActiveRepo();
         const pass = getActiveVaultPass();
         const st = $('admin-status');
 
-        if (!pat) { alert('Se requiere un GitHub Personal Access Token (PAT).'); return; }
-        if (!repo || !repo.includes('/')) { alert('El repositorio debe tener formato: usuario/repo.'); return; }
-        if (!pass) { alert('Ingrese la Contraseña Maestra de la Bóveda.'); return; }
+        if (!pat) {
+          alert('Falta el GitHub Personal Access Token (PAT).');
+          return;
+        }
+        if (!repo || !repo.includes('/')) {
+          alert('El repositorio debe tener el formato usuario/repo.');
+          return;
+        }
+        if (!pass) {
+          alert('Falta la Contraseña Maestra de Cifrado.');
+          return;
+        }
 
         let channelsList;
         try {
           channelsList = parseChannelsText($('vault-json-input').value.trim());
           const bad = channelsList.find(c => !String(c.path || c.url || c.ruta || '').trim());
-          if (bad) throw new Error(`El canal "${bad.name || bad.id}" carece de ruta (path).`);
+          if (bad) throw new Error(`El canal "${bad.name || bad.id}" no tiene path.`);
         } catch (err) {
-          alert('Error en el formato de canales: ' + err.message);
+          alert('Error en el formato del JSON de canales: ' + err.message);
           return;
         }
 
@@ -1376,7 +1347,7 @@
 
         publishing = true;
         try {
-          if (st) st.textContent = 'Generando sales criptográficas y cifrando canales...';
+          if (st) st.textContent = 'Cifrando con salt 100% aleatorio puro...';
 
           const encryptedConfig = JSON.parse(await CryptoEngine.encryptJson({
             baseUrl: baseUrlVal,
@@ -1407,7 +1378,12 @@
               canal
             }, k);
 
-            embeds[slugs[i]] = { ...blob, salt: saltB64, k, hash };
+            embeds[slugs[i]] = {
+              ...blob,
+              salt: saltB64,
+              k,
+              hash
+            };
           }
 
           const finalJSON = {
@@ -1421,41 +1397,43 @@
           if (g.ok) {
             sha = (await g.json()).sha;
           } else if (g.status !== 404) {
-            throw new Error('Imposible consultar token.json (HTTP ' + g.status + '). Verifique permisos del PAT.');
+            throw new Error('No se pudo leer token.json (HTTP ' + g.status + '). Revisá el PAT y el repositorio.');
           }
 
-          if (st) st.textContent = 'Enviando actualización a GitHub...';
+          if (st) st.textContent = 'Enviando a GitHub...';
           const body = {
-            message: 'Publish multi-layer FBO protected vault update',
+            message: 'Publish purely random-salted vault and channel embeds',
             content: btoa(unescape(encodeURIComponent(JSON.stringify(finalJSON))))
           };
           if (sha) body.sha = sha;
 
           const put = await fetch(apiUrl, {
             method: 'PUT',
-            headers: { ...headers, 'Content-Type': 'application/json' },
+            headers: {
+              ...headers,
+              'Content-Type': 'application/json'
+            },
             body: JSON.stringify(body)
           });
 
           if (!put.ok) {
-            let detail = 'Error en API de GitHub';
-            try { detail = (await put.json()).message || detail; } catch (_) {}
+            let detail = 'Error API GitHub';
+            try {
+              detail = (await put.json()).message || detail;
+            } catch (_) {}
             throw new Error(detail);
           }
 
-          if (st) st.textContent = '✓ ¡Bóveda y embeds publicados exitosamente!';
-          showToast('Bóveda token.json publicada en GitHub.');
+          if (st) st.textContent = '¡Publicado con éxito (Salts Aleatorios Puros)!';
+          alert('¡token.json publicado! Todos los canales y la bóveda fueron cifrados con salts 100% aleatorios.');
         } catch (e) {
           if (st) st.textContent = 'Error al publicar';
-          alert('Fallo durante la publicación: ' + e.message);
+          alert('Fallo al publicar: ' + e.message);
         } finally {
           publishing = false;
         }
       };
 
-      /* ========================================================
-         REPRODUCTOR SHAKA PLAYER & GESTIÓN DE FLUJO DE STREAM
-      ======================================================== */
       function streamKey() {
         const canales = getActiveChannels();
         const c = canales[currentIdx] || canales[0] || {};
@@ -1489,7 +1467,11 @@
 
       function escapeHTML(v) {
         return String(v ?? '').replace(/[&<>"']/g, ch => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
         }[ch]));
       }
 
@@ -1502,35 +1484,35 @@
         const filtered = canales.filter(c => String(c.name).toLowerCase().includes(q));
 
         if (!filtered.length) {
-          container.innerHTML = '<div class="text-center py-12 text-gray-500 text-xs">No se encontraron canales. Configure en Admin.</div>';
+          container.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">No hay canales cargados. Sincronice en Admin.</div>';
           return;
         }
 
         let html = `
           <table class="w-full text-left text-xs text-gray-300">
-            <thead class="bg-gray-900/80 text-gray-400 border-b border-gray-800 sticky top-0">
+            <thead class="bg-gray-800 text-gray-400 border-b border-gray-700 sticky top-0">
               <tr>
-                <th class="p-3">Canal</th>
-                <th class="p-3">Ruta / Manifest</th>
-                <th class="p-3">ClearKey KID:KEY</th>
-                <th class="p-3 text-right">Acción</th>
+                <th class="p-2.5">Canal</th>
+                <th class="p-2.5">Path</th>
+                <th class="p-2.5">ClearKey</th>
+                <th class="p-2.5 text-right">Acción</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-800/60">
+            <tbody class="divide-y divide-gray-800">
         `;
 
         filtered.forEach(c => {
           const idx = canales.indexOf(c);
           html += `
-            <tr class="hover:bg-gray-800/30 transition">
-              <td class="p-3 font-semibold text-white">${escapeHTML(c.name)}</td>
-              <td class="p-3">
-                <input type="text" value="${escapeHTML(c.path)}" readonly class="bg-gray-950 border border-gray-800 text-gray-400 font-mono text-[11px] px-2 py-1 rounded w-full">
+            <tr class="hover:bg-gray-800/40">
+              <td class="p-2.5 font-bold text-white">${escapeHTML(c.name)}</td>
+              <td class="p-2.5">
+                <input type="text" value="${escapeHTML(c.path)}" readonly class="bg-gray-950 border border-gray-700 text-gray-300 font-mono text-xs px-2 py-1 rounded w-full">
               </td>
-              <td class="p-3 font-mono text-yellow-400 text-[11px]">${escapeHTML(c.clearkey || 'Despejado')}</td>
-              <td class="p-3 text-right">
-                <button onclick="playChannelByIndex(${idx})" class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] font-medium transition cursor-pointer">
-                  <i class="fa-solid fa-play mr-1"></i> Reproducir
+              <td class="p-2.5 font-mono text-yellow-400 text-[11px]">${escapeHTML(c.clearkey || 'Auto-KID')}</td>
+              <td class="p-2.5 text-right">
+                <button onclick="playChannelByIndex(${idx})" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] cursor-pointer">
+                  <i class="fa-solid fa-play"></i> Reproducir
                 </button>
               </td>
             </tr>
@@ -1547,29 +1529,42 @@
         switchTab('player');
       };
 
+      /* ========================================================
+         SELECTOR DE RESOLUCIONES (AUTO ARRIBA Y RESOLUCIÓN EN "p")
+      ======================================================== */
       function buildQualityMenu() {
         if (!player) return;
         qmenu.innerHTML = '';
 
+        // Opción 1: Auto fija en la cima
         const auto = document.createElement('div');
-        auto.textContent = 'Automático (ABR)';
+        auto.textContent = 'Auto';
         auto.onclick = () => {
-          player.configure({ abr: { enabled: true } });
+          player.configure({
+            abr: {
+              enabled: true
+            }
+          });
           qmenu.style.display = 'none';
         };
         qmenu.appendChild(auto);
 
+        // Opciones de resoluciones individuales en 'p' ordenadas de mayor a menor
         const seen = new Set();
         player.getVariantTracks()
           .filter(t => t.height)
-          .sort((a, b) => b.height - a.height || b.bandwidth - a.bandwidth)
+          .sort((a, b) => b.height - a.height)
           .forEach(t => {
             if (seen.has(t.height)) return;
             seen.add(t.height);
             const d = document.createElement('div');
-            d.textContent = t.height + 'p (' + Math.round(t.bandwidth / 1000) + 'k)';
+            d.textContent = t.height + 'p';
             d.onclick = () => {
-              player.configure({ abr: { enabled: false } });
+              player.configure({
+                abr: {
+                  enabled: false
+                }
+              });
               player.selectVariantTrack(t, true);
               qmenu.style.display = 'none';
             };
@@ -1577,16 +1572,19 @@
           });
       }
 
+      /* ========================================================
+         CARGA DE STREAMING Y PROCESAMIENTO CLEARKEY EN GPU
+      ======================================================== */
       async function loadStream() {
         const canales = getActiveChannels();
         if (!canales.length) {
-          showPlayerMessage('No hay canales cargados en la bóveda.');
+          showPlayerMessage('No hay canales cargados. Verifique el Editor JSON en Admin.');
           return;
         }
 
         const base = getActiveBaseUrl();
         if (!base) {
-          showPlayerMessage('Se requiere configurar la Base URL en Admin.');
+          showPlayerMessage('No se encontró Base URL en el Panel de Admin.');
           return;
         }
 
@@ -1594,7 +1592,7 @@
         const c = canales[currentIdx] || canales[0];
         if (!c) return;
 
-        // PROCESAMIENTO FORZADO CLEARKEY: REBOTE EN TEXTURAS FBO EN VRAM
+        // EJECUCIÓN DEL PING-PONG DE FBOs EN VRAM ANTES DE ALIMENTAR CLEARKEY
         if (player) {
           if (c.clearkey && String(c.clearkey).includes(':')) {
             const p = String(c.clearkey).split(':');
@@ -1608,7 +1606,11 @@
               }
             });
           } else {
-            player.configure({ drm: { clearKeys: {} } });
+            player.configure({
+              drm: {
+                clearKeys: {}
+              }
+            });
           }
         }
 
@@ -1621,7 +1623,10 @@
         finalUrl += (finalUrl.includes('?') ? '&' : '?') + qp.join('&');
 
         try {
-          if (!player) { await initShakaPlayer(); return; }
+          if (!player) {
+            await initShakaPlayer();
+            return;
+          }
           if (requestId !== playbackRequest) return;
 
           showPlayerMessage(c.name, '#9ca3af');
@@ -1652,12 +1657,12 @@
 
       async function initShakaPlayer() {
         if (!window.shaka || !shaka.Player) {
-          showPlayerMessage('Shaka Player no inicializado.');
+          showPlayerMessage('No cargó Shaka Player.');
           return;
         }
         shaka.polyfill.installAll();
         if (!shaka.Player.isBrowserSupported()) {
-          showPlayerMessage('Navegador incompatible con EME/MSE.');
+          showPlayerMessage('Navegador no soportado.');
           return;
         }
 
@@ -1665,12 +1670,21 @@
           player = new shaka.Player();
           await player.attach(video);
 
-          const RETRY = { maxAttempts: 5, baseDelay: 500, backoffFactor: 2, fuzzFactor: 0.5, timeout: 30000 };
+          const RETRY = {
+            maxAttempts: 5,
+            baseDelay: 500,
+            backoffFactor: 2,
+            fuzzFactor: 0.5,
+            timeout: 30000
+          };
 
           player.configure({
             preferredAudioLanguage: 'es',
             preferredTextLanguage: 'es',
-            abr: { enabled: true, switchInterval: 2 },
+            abr: {
+              enabled: true,
+              switchInterval: 2
+            },
             streaming: {
               bufferingGoal: 25,
               rebufferingGoal: 2,
@@ -1682,12 +1696,16 @@
               jumpLargeGaps: true,
               retryParameters: RETRY
             },
-            manifest: { retryParameters: RETRY }
+            manifest: {
+              retryParameters: RETRY
+            }
           });
 
           player.addEventListener('error', e => {
             if (e.detail && e.detail.category === shaka.util.Error.Category.NETWORK) {
-              try { player.retryStreaming(); } catch (_) {}
+              try {
+                player.retryStreaming();
+              } catch (_) {}
             }
           });
 
@@ -1698,52 +1716,37 @@
       }
 
       /* ========================================================
-         TELEMETRÍA HUD EN TIEMPO REAL
+         CONTROLADORES DE INTERFAZ Y PANTALLA COMPLETA
       ======================================================== */
-      window.toggleTelemetryHUD = function() {
-        const hud = $('fp_hud');
-        if (!hud) return;
-        const isShown = hud.style.display === 'block';
-        hud.style.display = isShown ? 'none' : 'block';
-
-        if (!isShown) {
-          if (hudInterval) clearInterval(hudInterval);
-          hudInterval = setInterval(updateHUDTelemetry, 1000);
-        } else {
-          clearInterval(hudInterval);
-        }
+      playBtn.onclick = () => {
+        if (video.paused) video.play();
+        else video.pause();
       };
 
-      function updateHUDTelemetry() {
-        if (!player || !video) return;
-        const resEl = $('hud-res');
-        const bufEl = $('hud-buf');
-        const latEl = $('hud-lat');
-        const stEl = $('hud-status');
+      video.onplay = () => {
+        icoPlay.style.display = 'none';
+        icoPause.style.display = 'block';
+        showUI();
+      };
 
-        if (resEl) resEl.textContent = video.videoWidth ? `${video.videoWidth}x${video.videoHeight}` : 'Sincronizando...';
-        if (bufEl) {
-          const buf = player.getBufferFullness ? Math.round(player.getBufferFullness() * 100) : 0;
-          bufEl.textContent = buf + '%';
-        }
-        if (latEl) {
-          const stats = player.getStats();
-          latEl.textContent = stats && stats.liveLatency ? (stats.liveLatency.toFixed(2) + 's') : 'N/A';
-        }
-        if (stEl) {
-          stEl.textContent = video.paused ? 'PAUSADO' : 'FLUIDO (EME)';
-        }
-      }
+      video.onpause = () => {
+        icoPlay.style.display = 'block';
+        icoPause.style.display = 'none';
+        box.classList.remove('hide-ui');
+      };
 
-      /* ========================================================
-         EVENTOS DE CONTROL Y PANTALLA COMPLETA
-      ======================================================== */
-      playBtn.onclick = () => { if (video.paused) video.play(); else video.pause(); };
-      video.onplay = () => { icoPlay.style.display = 'none'; icoPause.style.display = 'block'; showUI(); };
-      video.onpause = () => { icoPlay.style.display = 'block'; icoPause.style.display = 'none'; box.classList.remove('hide-ui'); };
-      video.ontimeupdate = () => { bar.max = video.duration || 0; bar.value = video.currentTime; };
-      bar.oninput = () => video.currentTime = bar.value;
-      muteBtn.onclick = () => video.muted = !video.muted;
+      video.ontimeupdate = () => {
+        bar.max = video.duration || 0;
+        bar.value = video.currentTime;
+      };
+
+      bar.oninput = () => {
+        video.currentTime = bar.value;
+      };
+
+      muteBtn.onclick = () => {
+        video.muted = !video.muted;
+      };
 
       function toggleFS() {
         if (!document.fullscreenElement) {
@@ -1769,19 +1772,28 @@
         e.stopPropagation();
         qmenu.style.display = qmenu.style.display === 'block' ? 'none' : 'block';
       };
-      document.addEventListener('click', () => { qmenu.style.display = 'none'; });
+
+      document.addEventListener('click', () => {
+        qmenu.style.display = 'none';
+      });
+
       qmenu.onclick = e => e.stopPropagation();
 
       const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
       document.addEventListener('fullscreenchange', async () => {
         if (document.fullscreenElement) {
           if (!isIOS && screen.orientation?.lock) {
-            try { await screen.orientation.lock('landscape'); } catch (e) {}
+            try {
+              await screen.orientation.lock('landscape');
+            } catch (e) {}
           }
           if (isIOS) box.classList.add('ios-landscape');
         } else {
           if (!isIOS && screen.orientation?.unlock) {
-            try { screen.orientation.unlock(); } catch (e) {}
+            try {
+              screen.orientation.unlock();
+            } catch (e) {}
           }
           box.classList.remove('ios-landscape');
         }
@@ -1791,14 +1803,17 @@
       function showUI() {
         box.classList.remove('hide-ui');
         clearTimeout(uiTimer);
-        if (!video.paused) uiTimer = setTimeout(() => box.classList.add('hide-ui'), 2500);
+        if (!video.paused) {
+          uiTimer = setTimeout(() => box.classList.add('hide-ui'), 2500);
+        }
       }
+
       box.addEventListener('mousemove', showUI);
       box.addEventListener('touchstart', showUI);
       box.addEventListener('click', showUI);
 
       /* ========================================================
-         GENERADOR DE EMBEDS Y GALERÍA
+         GALERÍA Y GENERADOR DE EMBEDS CON HASH HMAC
       ======================================================== */
       async function renderEmbedsGallery() {
         const seq = ++gallerySeq;
@@ -1812,7 +1827,10 @@
         if (ed && ed.value.trim()) {
           try {
             const pretty = JSON.stringify(parseChannelsText(ed.value.trim()), null, 2);
-            if (ed.value !== pretty) { ed.value = pretty; saveInputsToStorage(); }
+            if (ed.value !== pretty) {
+              ed.value = pretty;
+              saveInputsToStorage();
+            }
           } catch (_) {}
         }
 
@@ -1820,7 +1838,7 @@
         const filtered = canales.filter(c => String(c.name).toLowerCase().includes(q));
 
         if (!filtered.length) {
-          container.innerHTML = '<div class="col-span-2 text-center py-12 text-gray-500 text-xs">No hay canales para generar embeds.</div>';
+          container.innerHTML = '<div class="col-span-2 text-center py-10 text-gray-500 text-sm">No hay canales cargados.</div>';
           return;
         }
 
@@ -1834,21 +1852,19 @@
           const code = `<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;"><iframe src="${src}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="autoplay;encrypted-media;fullscreen;picture-in-picture;clipboard-write" allowfullscreen title="${escapeHTML(c.name)}"></iframe></div>`;
 
           cards.push(`
-            <div class="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-3 shadow-lg">
+            <div class="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3 shadow-xl">
               <div class="flex justify-between items-center gap-2">
-                <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <i class="fa-solid fa-code text-sky-400"></i> ${escapeHTML(c.name)}
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                  <i class="fa-solid fa-code text-sky-400 mr-1.5"></i> ${escapeHTML(c.name)}
                 </h3>
-                <span class="text-[10px] bg-gray-950 border border-gray-800 text-sky-400 px-2 py-0.5 rounded font-mono">${escapeHTML(id)}</span>
+                <span class="text-[10px] bg-gray-900 text-sky-400 px-2 py-0.5 rounded font-mono">${escapeHTML(id)}</span>
               </div>
               <div class="flex gap-2">
-                <input type="text" readonly value="${escapeHTML(code)}" class="bg-gray-950 border border-gray-800 text-[10px] font-mono text-gray-400 px-2 py-1.5 rounded flex-1 min-w-0 select-all">
-                <button type="button" data-copy-embed class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs rounded transition font-medium cursor-pointer">
-                  <i class="fa-solid fa-copy"></i>
+                <input type="text" readonly value="${escapeHTML(code)}" class="bg-gray-900 border border-gray-800 text-[10px] font-mono text-gray-400 px-2 py-1 rounded flex-1 min-w-0 select-all">
+                <button type="button" data-copy-embed class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white text-xs rounded transition font-medium cursor-pointer">
+                  <i class="fa-solid fa-copy"></i> Copiar
                 </button>
-                <a href="${escapeHTML(src)}" target="_blank" rel="noopener" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sky-400 text-xs rounded border border-gray-700 transition flex items-center justify-center">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
+                <a href="${escapeHTML(src)}" target="_blank" rel="noopener" class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-sky-400 text-xs rounded border border-gray-700 font-medium">Probar</a>
               </div>
             </div>
           `);
@@ -1862,9 +1878,10 @@
             const input = button.parentElement.querySelector('input');
             try {
               await navigator.clipboard.writeText(input.value);
-              showToast('Código iframe copiado al portapapeles.');
-              button.innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i>';
-              setTimeout(() => { button.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 1500);
+              button.innerHTML = '<i class="fa-solid fa-check"></i> Copiado';
+              setTimeout(() => {
+                button.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar';
+              }, 1500);
             } catch (_) {
               input.focus();
               input.select();
