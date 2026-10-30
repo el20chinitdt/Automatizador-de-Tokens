@@ -14,7 +14,7 @@
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/shaka-player.compiled.js"></script>
 
   <!-- ====================================================================
-       ESTILOS DEL REPRODUCTOR (CLONADO EXACTO DE TU ARCHIVO HLS)
+       ESTILOS DEL REPRODUCTOR Y PIPELINE GPU NATIVO (BOLA REAL CLONADA)
        ==================================================================== -->
   <style id="gpu-pipeline-css">
     * {
@@ -91,29 +91,38 @@
       will-change: scroll-position;
     }
 
-    /* CONTENEDOR PRINCIPAL CLONADO */
+    /* CONTENEDOR PRINCIPAL ACELERADO POR HARDWARE */
     #flow-player {
+      width: 100%;
+      height: 100%;
       max-width: 1000px;
+      aspect-ratio: 16 / 9;
       margin: auto;
       position: relative;
-      background: #000;
+      background: #000000;
       border-radius: 10px;
       overflow: hidden;
       font-family: Arial, sans-serif;
-      height: 100%;
-      width: 100%;
-      aspect-ratio: 16 / 9;
+      transform: translate3d(0, 0, 0);
+      perspective: 1000px;
+      backface-visibility: hidden;
+      will-change: transform;
+      contain: layout paint;
     }
 
     /* ELEMENTO DE VIDEO CON SOPORTE DIRECTCOMPOSITION */
     #flow-player video {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       object-fit: contain;
-      background: #000;
+      background: #000000;
       display: block;
-      position: absolute;
-      inset: 0;
+      transform: translate3d(0, 0, 0);
+      backface-visibility: hidden;
+      will-change: transform;
+      contain: strict;
       z-index: 1;
     }
 
@@ -133,64 +142,7 @@
       left: 15%;
     }
 
-    /* CONTROLES EXACTOS DE TU ARCHIVO HLS */
-    #flow-player .controls {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      background: linear-gradient(to top, rgba(0,0,0,.9), transparent);
-      transition: opacity .25s;
-      z-index: 10;
-    }
-
-    /* LA BARRA Y LA BOLA TAL CUAL TU CÓDIGO ORIGINAL */
-    #flow-player input[type=range] {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 6px;
-      border-radius: 3px;
-      background: #fff;
-    }
-    #flow-player input[type=range]::-webkit-slider-thumb {
-      width: 0;
-      height: 0;
-    }
-    #flow-player input[type=range]::-moz-range-thumb {
-      width: 0;
-      height: 0;
-      border: 0;
-    }
-
-    /* BOTONES DE TU ARCHIVO HLS */
-    #flow-player button {
-      background: none;
-      border: 0;
-      cursor: pointer;
-      width: 34px;
-      height: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      outline: none;
-      padding: 0;
-    }
-
-    /* PANTALLA COMPLETA EXACTA DE TU ARCHIVO HLS */
-    #fp_fs {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 15;
-      transition: opacity .25s;
-    }
-
-    /* BOTÓN ACTIVAR SONIDO PULSANTE EXACTO DE TU ARCHIVO HLS */
+    /* BOTÓN ACTIVAR SONIDO PULSANTE */
     #flow-player #fp_unmute_top {
       position: absolute;
       top: 12px;
@@ -200,7 +152,7 @@
       align-items: center;
       gap: 8px;
       width: auto;
-      padding: 10px 16px 10px 12px;
+      padding: 9px 15px 9px 12px;
       background: #14abd1;
       color: #fff;
       border: 1px solid rgba(255,255,255,.3);
@@ -223,55 +175,10 @@
       transform: scale(.96);
     }
 
-    #flow-player #fp_unmute_top svg {
-      flex: none;
-    }
-
     @keyframes fp_pulse {
       0%  { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 0 rgba(20,171,209,.6); }
       70% { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 12px rgba(20,171,209,0); }
       100%{ box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 0 rgba(20,171,209,0); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      #flow-player #fp_unmute_top { animation: none; }
-    }
-
-    /* MENÚ DE CALIDAD DE TU ARCHIVO HLS */
-    #fp_qmenu {
-      position: absolute;
-      bottom: 60px;
-      right: 10px;
-      background: #111;
-      color: #fff;
-      border-radius: 6px;
-      display: none;
-      font-size: 13px;
-      z-index: 25;
-    }
-
-    #fp_qmenu div {
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-
-    #fp_qmenu div:hover {
-      background: #222;
-    }
-
-    /* REGLAS FULLSCREEN NATIVO */
-    #flow-player:fullscreen,
-    #flow-player:-webkit-full-screen {
-      width: 100% !important;
-      height: 100% !important;
-      max-width: none !important;
-      border-radius: 0 !important;
-    }
-
-    #flow-player.hide-ui .controls,
-    #flow-player.hide-ui #fp_fs {
-      opacity: 0;
-      pointer-events: none;
     }
 
     /* REGLAS PARA EMBEDS IFRAME */
@@ -328,10 +235,113 @@
       margin: 0 !important;
       padding: 0 !important;
       background: #000000 !important;
+      transform: translate3d(0, 0, 0);
+    }
+
+    /* CONTROLES CON LA BOLA REAL CLONADA */
+    #flow-player .controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+      transform: translateZ(0);
+      will-change: opacity, transform;
+    }
+
+    /* LA BARRA Y LA BOLA TAL CUAL TU CÓDIGO ORIGINAL */
+    #flow-player input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: #fff;
+    }
+    #flow-player input[type=range]::-webkit-slider-thumb {
+      width: 0;
+      height: 0;
+    }
+    #flow-player input[type=range]::-moz-range-thumb {
+      width: 0;
+      height: 0;
+      border: 0;
+    }
+
+    /* BOTONES MINIMALISTAS TRANSPARENTES DE 34px */
+    #flow-player button {
+      background: none;
+      border: 0;
+      cursor: pointer;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      outline: none;
+      padding: 0;
+    }
+
+    /* BOTÓN PANTALLA COMPLETA TOTALMENTE FLOTANTE SIN CAJA */
+    #fp_fs {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 15;
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      outline: none;
+      transform: translateZ(0);
+    }
+
+    /* MENÚ DE CALIDAD MINIMALISTA Y FLOTANTE */
+    #fp_qmenu {
+      position: absolute;
+      bottom: 54px;
+      right: 10px;
+      background: #111111;
+      color: #ffffff;
+      border-radius: 6px;
+      display: none;
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 25;
+      border: 1px solid #333333;
+      max-height: 180px;
+      overflow-y: auto;
+      backdrop-filter: blur(8px);
+      min-width: 50px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+    }
+
+    #fp_qmenu div {
+      padding: 5px 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s ease, color 0.15s ease;
+      user-select: none;
+    }
+
+    #fp_qmenu div:hover {
+      background: #222222;
+      color: #38bdf8;
     }
 
     #flow-player.ios-landscape {
-      transform: rotate(90deg);
+      transform: rotate(90deg) translate3d(0, 0, 0);
       transform-origin: center;
       width: 100vh !important;
       height: 100vw !important;
@@ -339,6 +349,12 @@
       top: 0;
       left: 0;
       z-index: 9999;
+    }
+
+    #flow-player.hide-ui .controls,
+    #flow-player.hide-ui #fp_fs {
+      opacity: 0;
+      pointer-events: none;
     }
   </style>
 
@@ -634,7 +650,7 @@
     <!-- Pestaña 1: Reproductor OTT GPU -->
     <div id="content-player" class="tab-content active flex-col items-center justify-center p-2 sm:p-6 w-full h-full">
       <div id="flow-player">
-        <!-- Botón Activar Sonido de tu archivo HLS -->
+        <!-- Botón Activar Sonido Pulsante -->
         <button id="fp_unmute_top">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a9 9 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
           Activar sonido
@@ -645,32 +661,34 @@
         <!-- Marca de Agua Dinámica Anti-OBS / Anti-Grabación -->
         <div id="fp_watermark">PRODUCCIONES EL CHINI</div>
 
-        <!-- Botón Pantalla Completa Flotante de tu archivo HLS -->
-        <button id="fp_fs">
+        <!-- Botón Pantalla Completa Flotante Minimalista -->
+        <button id="fp_fs" title="Pantalla Completa">
           <svg viewBox="0 0 24 24" width="26" height="26" stroke="#14abd1" stroke-width="3" fill="none">
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
           </svg>
         </button>
 
-        <!-- Barra de Controles Inferior de tu archivo HLS -->
+        <!-- Barra de Controles Inferior -->
         <div class="controls">
-          <button id="fp_play">
-            <svg id="fp_icoPlay" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
-            <svg id="fp_icoPause" viewBox="0 0 24 24" fill="#fff" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
+          <button id="fp_play" title="Reproducir / Pausar">
+            <svg id="fp_icoPlay" viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="fp_icoPause" viewBox="0 0 24 24" width="20" height="20" fill="#fff" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
           </button>
           
           <input id="fp_bar" type="range" value="0" min="0" step="0.1">
           
-          <button id="fp_mute"><svg viewBox="0 0 24 24" fill="#fff"><path d="M3 10v4h4l5 5V5L7 10z"/></svg></button>
+          <button id="fp_mute" title="Silenciar">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M3 10v4h4l5 5V5L7 10z"/></svg>
+          </button>
           
-          <button id="fp_gear">
+          <button id="fp_gear" title="Resoluciones">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="#14abd1">
               <path d="M19.4 13.5c.04-.5.06-1 .06-1.5s-.02-1-.06-1.5l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.03 7.03 0 0 0-2.6-1.5l-.38-2.65A.5.5 0 0 0 13.1 1h-4a.5.5 0 0 0-.5.42l-.38 2.65a7.03 7.03 0 0 0-2.6 1.5l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.64L2.6 10.5c-.04.5-.06 1-.06 1.5s.02 1 .06 1.5L.49 15.15a.5.5 0 0 0-.12.64l2 3.46c.14.24.43.34.69.22l2.49-1a7.03 7.03 0 0 0 2.6 1.5l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65a7.03 7.03 0 0 0 2.6-1.5l2.49 1c.26.12.55.02.69-.22l2-3.46a.5.5 0 0 0-.12-.64L19.4 13.5zM11 15.5A3.5 3.5 0 1 1 11 8a3.5 3.5 0 0 1 0 7.5z"/>
             </svg>
           </button>
         </div>
 
-        <!-- Menú Emergente de Calidad de tu archivo HLS -->
+        <!-- Menú Emergente de Calidad -->
         <div id="fp_qmenu"></div>
       </div>
     </div>
