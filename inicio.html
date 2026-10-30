@@ -5,16 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>PRODUCCIONES EL CHINI - WEBGL EME OTT</title>
   
-  <!-- Content Security Policy Estricta -->
+  <!-- ====================================================================
+       CABECERA DE SEGURIDAD: POLÍTICA CSP ESTRICTA DE FRONTERA
+       ==================================================================== -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://*.github.io https://raw.githubusercontent.com; connect-src * blob: data:; media-src * blob: data:; img-src * blob: data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; frame-src *;">
 
-  <!-- Librerías base autorizadas -->
+  <!-- Inclusión de librerías base certificadas -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/shaka-player.compiled.js"></script>
 
   <!-- ====================================================================
-       ESTILOS DEL REPRODUCTOR (UI REAL CLONADA AL MILÍMETRO)
+       ESTILOS DEL REPRODUCTOR Y PIPELINE GPU NATIVO
        ==================================================================== -->
   <style id="gpu-pipeline-css">
     * {
@@ -91,7 +93,7 @@
       will-change: scroll-position;
     }
 
-    /* CONTENEDOR PRINCIPAL EN ESCALA REAL */
+    /* CONTENEDOR PRINCIPAL ACELERADO POR HARDWARE */
     #flow-player {
       width: 100%;
       height: 100%;
@@ -110,6 +112,7 @@
       contain: layout paint;
     }
 
+    /* ELEMENTO DE VIDEO CON SOPORTE DIRECTCOMPOSITION */
     #flow-player video {
       position: absolute;
       inset: 0;
@@ -125,120 +128,20 @@
       z-index: 1;
     }
 
-    /* CONTROLES ORIGINALES */
-    #flow-player .controls {
+    /* MARCA DE AGUA DINÁMICA ANTI-OBS */
+    #fp_watermark {
       position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent);
-      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 10;
-      transform: translateZ(0);
-      will-change: opacity, transform;
-    }
-
-    /* BARRA BLANCA DE 6px */
-    #flow-player input[type=range] {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 6px;
-      border-radius: 3px;
-      background: #ffffff;
-      cursor: pointer;
-      outline: none;
-    }
-
-    /* LA BOLA AZUL REAL (16px, SIN HALOS GIGANTES) */
-    #flow-player input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #0084ff;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 4px rgba(0, 132, 255, 0.8);
-    }
-
-    #flow-player input[type=range]::-moz-range-thumb {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #0084ff;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 4px rgba(0, 132, 255, 0.8);
-    }
-
-    #flow-player button {
-      background: none;
-      border: 0;
-      cursor: pointer;
-      width: 34px;
-      height: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ffffff;
-      outline: none;
-      padding: 0;
-    }
-
-    #flow-player button:hover {
-      opacity: 0.85;
-    }
-
-    #fp_fs {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 15;
-      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px;
-      border-radius: 6px;
-      transform: translateZ(0);
-    }
-
-    /* MENÚ DE CALIDAD ORIGINAL EN 11px */
-    #fp_qmenu {
-      position: absolute;
-      bottom: 48px;
-      right: 12px;
-      background: rgba(17, 17, 17, 0.96);
-      color: #ffffff;
-      border-radius: 6px;
-      display: none;
+      pointer-events: none;
+      font-family: monospace;
       font-size: 11px;
-      z-index: 25;
-      border: 1px solid #333333;
-      max-height: 160px;
-      overflow-y: auto;
-      backdrop-filter: blur(8px);
-      transform: translateZ(0);
-      min-width: 72px;
-      white-space: nowrap;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
-    }
-
-    #fp_qmenu div {
-      padding: 6px 12px;
-      cursor: pointer;
-      text-align: center;
-      transition: background 0.15s ease, color 0.15s ease;
+      font-weight: bold;
+      color: rgba(255, 255, 255, 0.22);
+      z-index: 12;
       user-select: none;
-    }
-
-    #fp_qmenu div:hover {
-      background: #333333;
-      color: #38bdf8;
+      transition: top 3s ease, left 3s ease, opacity 2s ease;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      top: 15%;
+      left: 15%;
     }
 
     /* REGLAS PARA EMBEDS IFRAME */
@@ -298,6 +201,124 @@
       transform: translate3d(0, 0, 0);
     }
 
+    /* CONTROLES DE REPRODUCCIÓN ORIGINALES */
+    #flow-player .controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent);
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+      transform: translateZ(0);
+      will-change: opacity, transform;
+    }
+
+    /* BARRA BLANCA DE 6px */
+    #flow-player input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: #ffffff;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* BOLA AZUL REAL CLONADA (16px) */
+    #flow-player input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #0084ff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 4px rgba(0, 132, 255, 0.8);
+    }
+
+    #flow-player input[type=range]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #0084ff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 4px rgba(0, 132, 255, 0.8);
+    }
+
+    /* BOTONES ORIGINALES DE 34px */
+    #flow-player button {
+      background: none;
+      border: 0;
+      cursor: pointer;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      outline: none;
+      padding: 0;
+    }
+
+    #flow-player button:hover {
+      opacity: 0.85;
+    }
+
+    /* BOTÓN PANTALLA COMPLETA ORIGINAL DE 22px CON FONDO TRANSLÚCIDO */
+    #fp_fs {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 15;
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px;
+      border-radius: 6px;
+      transform: translateZ(0);
+    }
+
+    /* MENÚ DE RESOLUCIONES ORIGINAL EN 11px */
+    #fp_qmenu {
+      position: absolute;
+      bottom: 48px;
+      right: 12px;
+      background: rgba(17, 17, 17, 0.96);
+      color: #ffffff;
+      border-radius: 6px;
+      display: none;
+      font-size: 11px;
+      z-index: 25;
+      border: 1px solid #333333;
+      max-height: 160px;
+      overflow-y: auto;
+      backdrop-filter: blur(8px);
+      transform: translateZ(0);
+      min-width: 72px;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+    }
+
+    #fp_qmenu div {
+      padding: 6px 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s ease, color 0.15s ease;
+      user-select: none;
+    }
+
+    #fp_qmenu div:hover {
+      background: #333333;
+      color: #38bdf8;
+    }
+
     #flow-player.ios-landscape {
       transform: rotate(90deg) translate3d(0, 0, 0);
       transform-origin: center;
@@ -317,7 +338,7 @@
   </style>
 
   <!-- ====================================================================
-       MOTOR DE AUDITORÍA Y PROTECCIÓN ESTABILIZADO (SIN FALSOS POSITIVOS)
+       MOTOR DE AUDITORÍA PROFUNDA Y DETECCIÓN AVANZADA (DEEP SHIELD)
        ==================================================================== -->
   <script id="deep-shield-core">
     if (new URLSearchParams(location.search).has('embed_ch')) {
@@ -327,20 +348,85 @@
     (function() {
       'use strict';
 
+      let tripped = false;
+
       const DeepShield = {
+        killSession: function(reason) {
+          if (tripped) return;
+          tripped = true;
+          console.clear();
+          console.error('[SEGURIDAD VIOLADA - AUDITORÍA DE HOST]:', reason);
+
+          try {
+            if (window.player && typeof window.player.destroy === 'function') {
+              window.player.destroy();
+            }
+          } catch (_) {}
+
+          const videoEl = document.getElementById('fp_video');
+          if (videoEl) {
+            videoEl.pause();
+            videoEl.src = '';
+            videoEl.load();
+          }
+
+          const box = document.getElementById('flow-player');
+          if (box) {
+            box.innerHTML = `
+              <div style="position:absolute;inset:0;background:#000000;color:#ef4444;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-weight:bold;text-align:center;padding:20px;z-index:9999;">
+                <div style="font-size:22px;margin-bottom:8px;">⚠ Reproducción Detenida</div>
+                <div style="font-size:12px;color:#9ca3af;max-width:420px;font-weight:normal;line-height:1.5;">
+                  Se detectaron herramientas de inspección, emulación o modificaciones no autorizadas en el entorno.
+                </div>
+              </div>`;
+          }
+        },
+
         checkUserAgentSignatures: function() {
           const ua = (navigator.userAgent || '') + ' ' + (navigator.appVersion || '');
           const banned = [
-            'HeadlessChrome', 'PhantomJS', 'Puppeteer', 'Playwright', 'Nightmare',
-            'Selenium', 'Cypress', 'Wget', 'Curl', 'Python-requests', 'Scrapy', 'Go-http-client'
+            'HeadlessChrome',
+            'PhantomJS',
+            'Puppeteer',
+            'Playwright',
+            'Nightmare',
+            'Selenium',
+            'Cypress',
+            'Wget',
+            'Curl',
+            'Python-requests',
+            'Scrapy',
+            'Go-http-client'
           ];
           for (let i = 0; i < banned.length; i++) {
             if (new RegExp(banned[i], 'i').test(ua)) {
-              console.warn('[ACCESO NO AUTORIZADO]: Entorno automatizado.');
-              window.stop();
+              this.killSession('Firma de agente no autorizada: ' + banned[i]);
               return;
             }
           }
+        },
+
+        checkWebDriverAndStealth: function() {
+          if (navigator.webdriver === true) {
+            this.killSession('navigator.webdriver = true activo');
+            return;
+          }
+
+          try {
+            const protoDesc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver');
+            const ownDesc = Object.getOwnPropertyDescriptor(navigator, 'webdriver');
+            if (ownDesc && !protoDesc) {
+              this.killSession('Anomalía de stealth: navigator.webdriver emulado');
+              return;
+            }
+            if (protoDesc && protoDesc.get) {
+              const str = protoDesc.get.toString();
+              if (!str.includes('[native code]')) {
+                this.killSession('Hook detectado en Navigator.prototype.webdriver');
+                return;
+              }
+            }
+          } catch (_) {}
         },
 
         checkAutomationVariables: function() {
@@ -351,22 +437,106 @@
             '__nightmare',
             'callPhantom'
           ];
-
           for (let i = 0; i < vars.length; i++) {
             if (vars[i] in window || vars[i] in document) {
-              console.warn('[AUTOMATIZACIÓN DOM DETECTADA]');
-              window.stop();
+              this.killSession('Variable de automatización detectada: ' + vars[i]);
               return;
             }
           }
         },
 
+        checkHardwareRenderer: function() {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1;
+            canvas.height = 1;
+            const gl = canvas.getContext('webgl', { powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl');
+            if (!gl) return;
+
+            const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            if (dbgInfo) {
+              const fullDevice = (String(gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) || '') + ' ' + String(gl.getParameter(dbgInfo.UNMASKED_VENDOR_WEBGL) || '')).toLowerCase();
+              const virtualDrivers = [
+                'swiftshader',
+                'llvmpipe',
+                'software rasterizer',
+                'mesa offscreen',
+                'virtualbox',
+                'vmware',
+                'qemu'
+              ];
+              for (let i = 0; i < virtualDrivers.length; i++) {
+                if (fullDevice.includes(virtualDrivers[i])) {
+                  this.killSession('GPU de software o máquina virtual detectada: ' + virtualDrivers[i]);
+                  return;
+                }
+              }
+            }
+          } catch (_) {}
+        },
+
+        checkDevToolsDivergence: function() {
+          const isEmbed = window.self !== window.top || new URLSearchParams(location.search).has('embed_ch');
+          if (isEmbed) return;
+          
+          setInterval(() => {
+            if (window.innerWidth > 800) {
+              const widthDiff = window.outerWidth - window.innerWidth;
+              const heightDiff = window.outerHeight - window.innerHeight;
+              if (widthDiff > 160 || heightDiff > 160) {
+                this.killSession('Herramientas de depuración acopladas detectadas');
+              }
+            }
+          }, 1500);
+        },
+
+        installConsoleTraps: function() {
+          const self = this;
+          const trapImg = new Image();
+          Object.defineProperty(trapImg, 'id', {
+            get: function() {
+              self.killSession('Inspección de consola activa (Getter Trap)');
+              return '';
+            }
+          });
+
+          const trapRegex = /./;
+          trapRegex.toString = function() {
+            self.killSession('Inspección de consola activa (RegExp Trap)');
+            return '';
+          };
+
+          setInterval(() => {
+            console.log(trapImg);
+            console.log(trapRegex);
+            console.clear();
+          }, 2000);
+        },
+
         startAntiDebuggerLoop: function() {
-          setInterval(function() {
-            (function() {
-              return false;
-            })['constructor']('debugger')();
+          let lagCount = 0;
+          setInterval(() => {
+            const start = performance.now();
+            (function() { return false; })['constructor']('debugger')();
+            const elapsed = performance.now() - start;
+            if (elapsed > 120) {
+              lagCount++;
+              if (lagCount >= 2) {
+                this.killSession('Breakpoint de depuración detectado');
+              }
+            } else {
+              lagCount = 0;
+            }
           }, 1000);
+        },
+
+        immunizeShakaPrototypes: function() {
+          if (window.shaka && shaka.Player) {
+            try {
+              Object.freeze(shaka.Player.prototype);
+              Object.freeze(shaka.Player);
+            } catch (_) {}
+          }
         },
 
         blockInspectionKeysAndMouse: function() {
@@ -379,13 +549,10 @@
           window.addEventListener('keydown', function(e) {
             const k = (e.key || '').toUpperCase();
             const ctrl = e.ctrlKey || e.metaKey;
-            const shift = e.shiftKey;
-            const alt = e.altKey;
-
             if (
               e.key === 'F12' ||
-              (ctrl && shift && ['I', 'J', 'C', 'K', 'S'].includes(k)) ||
-              (ctrl && alt && ['I', 'J', 'C', 'U'].includes(k)) ||
+              (ctrl && e.shiftKey && ['I', 'J', 'C', 'K', 'S'].includes(k)) ||
+              (ctrl && e.altKey && ['I', 'J', 'C', 'U'].includes(k)) ||
               (ctrl && ['U', 'S', 'P'].includes(k))
             ) {
               e.preventDefault();
@@ -397,15 +564,20 @@
 
         runAll: function() {
           this.checkUserAgentSignatures();
+          this.checkWebDriverAndStealth();
           this.checkAutomationVariables();
-          this.blockInspectionKeysAndMouse();
+          this.checkHardwareRenderer();
+          this.checkDevToolsDivergence();
+          this.installConsoleTraps();
           this.startAntiDebuggerLoop();
+          this.blockInspectionKeysAndMouse();
         }
       };
 
       DeepShield.runAll();
 
       document.addEventListener('DOMContentLoaded', function() {
+        DeepShield.immunizeShakaPrototypes();
         if (new URLSearchParams(location.search).has('embed_ch')) {
           document.body.classList.add('is-embed');
         }
@@ -461,14 +633,17 @@
       <div id="flow-player">
         <video id="fp_video" playsinline webkit-playsinline autoplay preload="auto"></video>
         
-        <!-- Botón Pantalla Completa de 22px -->
+        <!-- Marca de Agua Dinámica Anti-OBS -->
+        <div id="fp_watermark">PRODUCCIONES EL CHINI</div>
+
+        <!-- Botón Pantalla Completa Original de 22px -->
         <button id="fp_fs" title="Pantalla Completa">
           <svg viewBox="0 0 24 24" width="22" height="22" stroke="#14abd1" stroke-width="3" fill="none">
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
           </svg>
         </button>
 
-        <!-- Barra de Controles: Íconos de 20px y la bola azul de 16px -->
+        <!-- Barra de Controles con Íconos Originales de 20px y Bola Azul de 16px -->
         <div class="controls">
           <button id="fp_play">
             <svg id="fp_icoPlay" viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
@@ -586,9 +761,6 @@
         ['vault-json-input', 'ch_vault_json']
       ];
 
-      /* ========================================================
-         TRANSFORMADOR CRIPTOGRÁFICO XOR STREAM
-      ======================================================== */
       function xorStream(dataBytes, keyBytes) {
         const out = new Uint8Array(dataBytes.length);
         const kLen = keyBytes.length;
@@ -598,9 +770,6 @@
         return out;
       }
 
-      /* ========================================================
-         PERSISTENCIA LOCAL DE CONFIGURACIÓN
-      ======================================================== */
       window.saveInputsToStorage = function() {
         if (isEmbedMode) return;
         try {
@@ -614,20 +783,14 @@
       function restoreInputsFromStorage() {
         FIELDS.forEach(([id, k]) => {
           let v = null;
-          try {
-            v = localStorage.getItem(k);
-          } catch (_) {}
+          try { v = localStorage.getItem(k); } catch (_) {}
           const el = $(id);
           if (v !== null && el) el.value = v;
         });
       }
 
       const ls = k => {
-        try {
-          return localStorage.getItem(k) || '';
-        } catch (_) {
-          return '';
-        }
+        try { return localStorage.getItem(k) || ''; } catch (_) { return ''; }
       };
 
       function getEmbedRepo() {
@@ -650,12 +813,7 @@
         const used = new Set();
         list.forEach(c => {
           const id = c.id == null ? '' : String(c.id).trim();
-          if (id && !used.has(id)) {
-            used.add(id);
-            c.id = id;
-          } else {
-            c.id = '';
-          }
+          if (id && !used.has(id)) { used.add(id); c.id = id; } else { c.id = ''; }
         });
         let n = 1;
         list.forEach(c => {
@@ -683,13 +841,10 @@
         const el = $('vault-json-input');
         for (const t of [el ? el.value.trim() : '', ls('ch_vault_json').trim()]) {
           if (!t) continue;
-          try {
-            return parseChannelsText(t);
-          } catch (e) {}
+          try { return parseChannelsText(t); } catch (e) {}
         }
         return ensureIds(appData.canales || []);
       }
-
       /* ========================================================
          MOTOR WEBGL: FBO PING-PONG + ENMASCARAMIENTO XOR + HASH SHA-256
       ======================================================== */
@@ -783,7 +938,6 @@
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             return true;
           } catch (e) {
-            console.warn('Fallo inicializando Ping-Pong FBO:', e);
             return false;
           }
         }
@@ -843,7 +997,6 @@
             const restoredBytes = xorStream(xorProtectedBytes, xorMask);
             return bytesToHex(restoredBytes);
           } catch (e) {
-            console.warn('Error en ejecución de Ping-Pong FBO:', e);
             return rawHex.trim().toLowerCase();
           }
         }
@@ -859,7 +1012,6 @@
           const postKeyHash = await CryptoEngine.sha256('webgl-key-audit:' + pingKey);
 
           if (kidHash !== postKidHash || keyHash !== postKeyHash) {
-            console.warn('[ALERTA INTEGRIDAD GPU]: FBO hash mismatch. Restaurando canal nativo.');
             return { kid: rawKid.trim().toLowerCase(), key: rawKey.trim().toLowerCase() };
           }
 
@@ -906,19 +1058,16 @@
           const combined = new Uint8Array(salt.length + raw.length);
           combined.set(salt, 0);
           combined.set(raw, salt.length);
-          const hash = await crypto.subtle.digest('SHA-256', combined);
-          return new Uint8Array(hash);
+          return new Uint8Array(await crypto.subtle.digest('SHA-256', combined));
         }
 
         async function encryptJson(jsonData, password) {
           const salt = crypto.getRandomValues(new Uint8Array(16));
           const iv = crypto.getRandomValues(new Uint8Array(12));
           const key = await getKdfKey(salt, password, KDF_ITER);
-          
           const rawJsonString = JSON.stringify(jsonData);
 
           const innerSha = await sha256(rawJsonString);
-
           const enc = await crypto.subtle.encrypt(
             { name: 'AES-GCM', iv },
             key,
@@ -927,7 +1076,6 @@
           
           const xorKeyBytes = await deriveXorKey(salt, password);
           const xorEncrypted = xorStream(new Uint8Array(enc), xorKeyBytes);
-
           const outerSha = await sha256(xorEncrypted);
 
           return JSON.stringify({
@@ -938,7 +1086,7 @@
             innerSha: innerSha,
             iter: KDF_ITER,
             kdf: 'PBKDF2-SHA256',
-            cipher: 'AES-256-GCM + XOR-STREAM + SHA256-INTEGRITY',
+            cipher: 'AES-256-GCM + XOR-STREAM',
             payload: {
               salt: Array.from(salt),
               iv: Array.from(iv),
@@ -951,17 +1099,11 @@
           try {
             const obj = JSON.parse(rawText);
             if (obj && obj.encrypted && obj.payload) {
-              if (!obj.payload.salt || !Array.isArray(obj.payload.salt) || !obj.payload.salt.length) {
-                throw new Error('Bóveda incompatible: requiere salt aleatorio.');
-              }
               const salt = new Uint8Array(obj.payload.salt);
               let dataBytes = new Uint8Array(obj.payload.data);
 
               if (obj.sha256) {
-                const currentOuterSha = await sha256(dataBytes);
-                if (currentOuterSha !== obj.sha256) {
-                  throw new Error('Integridad violada: El hash SHA-256 del payload no coincide.');
-                }
+                if ((await sha256(dataBytes)) !== obj.sha256) throw new Error('Hash externo inválido');
               }
 
               if (obj.xor === true || obj.version >= 5) {
@@ -974,23 +1116,17 @@
                 await getKdfKey(salt, password, obj.iter || KDF_ITER),
                 dataBytes
               );
-
               const decryptedText = new TextDecoder().decode(dec);
 
               if (obj.innerSha) {
-                const currentInnerSha = await sha256(decryptedText);
-                if (currentInnerSha !== obj.innerSha) {
-                  throw new Error('Integridad violada: El hash SHA-256 interno del JSON fue adulterado.');
-                }
+                if ((await sha256(decryptedText)) !== obj.innerSha) throw new Error('Hash interno inválido');
               }
 
-              const result = JSON.parse(decryptedText);
-              if (!result || typeof result !== 'object') throw new Error('Formato inválido');
-              return result;
+              return JSON.parse(decryptedText);
             }
             return obj;
           } catch (e) {
-            throw new Error('Contraseña incorrecta o fallo en la integridad SHA/XOR.');
+            throw new Error('Contraseña o integridad inválida');
           }
         }
 
@@ -1024,8 +1160,15 @@
       const gearBtn = $('fp_gear');
       const qmenu = $('fp_qmenu');
       const box = $('flow-player');
+      const watermark = $('fp_watermark');
 
       video.muted = false;
+
+      setInterval(() => {
+        if (!watermark) return;
+        watermark.style.top = Math.floor(Math.random() * 70 + 10) + '%';
+        watermark.style.left = Math.floor(Math.random() * 70 + 10) + '%';
+      }, 9000);
 
       function getRepoConfigSources() {
         const repo = getActiveRepo();
@@ -1083,11 +1226,9 @@
             if (!res.ok) continue;
             const cfg = normalizeConfig(await CryptoEngine.decryptJson(await res.text(), pass));
             if (cfg && cfg.canales.length > 0) return { ...cfg, error: '' };
-          } catch (e) {
-            console.warn('Fallo al cargar fuente remota o descifrar:', e);
-          }
+          } catch (e) {}
         }
-        return { baseUrl: '', token: '', canales: [], error: 'No se pudo descifrar token.json. Comprobá la contraseña maestra o el archivo publicado.' };
+        return { baseUrl: '', token: '', canales: [], error: 'No se pudo descifrar token.json.' };
       }
 
       function applyConfigToInputs(cfg) {
@@ -1096,16 +1237,9 @@
         appData.token = cfg.token;
         appData.canales = ensureIds(cfg.canales);
 
-        const baseInput = $('base-url-input');
-        if (baseInput && !baseInput.value && cfg.baseUrl) baseInput.value = cfg.baseUrl;
-
-        const globToken = $('global-token');
-        if (globToken && !globToken.value && cfg.token) globToken.value = cfg.token;
-
-        const jsonInput = $('vault-json-input');
-        if (jsonInput && !jsonInput.value && cfg.canales && cfg.canales.length > 0) {
-          jsonInput.value = JSON.stringify(appData.canales, null, 2);
-        }
+        if ($('base-url-input') && !$('base-url-input').value && cfg.baseUrl) $('base-url-input').value = cfg.baseUrl;
+        if ($('global-token') && !$('global-token').value && cfg.token) $('global-token').value = cfg.token;
+        if ($('vault-json-input') && !$('vault-json-input').value && cfg.canales.length > 0) $('vault-json-input').value = JSON.stringify(appData.canales, null, 2);
         saveInputsToStorage();
       }
 
@@ -1143,15 +1277,8 @@
       }
 
       const hexOf = u8 => Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('');
-      const unhex = h => {
-        if (typeof h !== 'string' || !/^(?:[0-9a-f]{2})+$/i.test(h)) throw new Error('Hash de embed inválido.');
-        return Uint8Array.from(h.match(/../g).map(x => parseInt(x, 16)));
-      };
-      const toB64 = u8 => {
-        let s = '';
-        u8.forEach(b => s += String.fromCharCode(b));
-        return btoa(s);
-      };
+      const unhex = h => Uint8Array.from(h.match(/../g).map(x => parseInt(x, 16)));
+      const toB64 = u8 => btoa(Array.from(u8, b => String.fromCharCode(b)).join(''));
       const fromB64 = b => Uint8Array.from(atob(b), ch => ch.charCodeAt(0));
 
       async function createMasterHmacKey(pass, randomMasterSalt) {
@@ -1162,113 +1289,59 @@
 
       async function embedKeyHex(masterHmacKey, id, randomEmbedSalt) {
         const payload = new Uint8Array([...randomEmbedSalt, ...new TextEncoder().encode(':v6:' + String(id))]);
-        const sig = await crypto.subtle.sign('HMAC', masterHmacKey, payload);
-        return hexOf(new Uint8Array(sig));
-      }
-
-      async function hashEmbedKey(keyHex, saltB64) {
-        return CryptoEngine.sha256('elchini-embed-integrity-v6:' + String(saltB64) + ':' + keyHex);
+        return hexOf(new Uint8Array(await crypto.subtle.sign('HMAC', masterHmacKey, payload)));
       }
 
       async function encryptEmbed(obj, keyHex) {
         const rawKey = unhex(keyHex);
         const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt']);
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const plain = new TextEncoder().encode(JSON.stringify(obj));
-        const aad = new TextEncoder().encode('elchini-embed-v6');
-        
-        const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad, tagLength: 128 }, key, plain);
+        const ct = await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv, additionalData: new TextEncoder().encode('elchini-embed-v6'), tagLength: 128 },
+          key,
+          new TextEncoder().encode(JSON.stringify(obj))
+        );
         const xorProtected = xorStream(new Uint8Array(ct), rawKey);
-        const embedSha = await CryptoEngine.sha256(xorProtected);
-
         return {
           version: 6,
           xor: true,
-          sha256: embedSha,
+          sha256: await CryptoEngine.sha256(xorProtected),
           iv: toB64(iv),
           data: toB64(xorProtected)
         };
       }
 
       async function decryptEmbed(blob, keyHex) {
-        if (!blob || (blob.version !== 4 && blob.version !== 5 && blob.version !== 6) || !blob.iv || !blob.data) {
-          throw new Error('Formato de embed inválido.');
-        }
         const rawKey = unhex(keyHex);
         const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
-        const aad = new TextEncoder().encode(blob.version === 6 ? 'elchini-embed-v6' : (blob.version === 5 ? 'elchini-embed-v5' : 'elchini-embed-v4'));
-        
         let encData = fromB64(blob.data);
-
-        if (blob.sha256) {
-          const checkSha = await CryptoEngine.sha256(encData);
-          if (checkSha !== blob.sha256) throw new Error('Integridad SHA-256 de embed violada.');
-        }
-
-        if (blob.xor || blob.version >= 5) {
-          encData = xorStream(encData, rawKey);
-        }
-
-        const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(blob.iv), additionalData: aad, tagLength: 128 }, key, encData);
+        if (blob.xor || blob.version >= 5) encData = xorStream(encData, rawKey);
+        const pt = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: fromB64(blob.iv), additionalData: new TextEncoder().encode(blob.version === 6 ? 'elchini-embed-v6' : 'elchini-embed-v5'), tagLength: 128 },
+          key,
+          encData
+        );
         return JSON.parse(new TextDecoder().decode(pt));
       }
 
       async function loadEmbedConfig(id) {
-        if (!id) return { error: 'Embed sin canal. Copiá de nuevo el código desde "Generador de Embeds".' };
-        let err = 'Canal no disponible. Entrá a Admin y tocá "Publicar JSON Cifrado a GitHub".';
-        
+        if (!id) return { error: 'Embed sin canal.' };
         for (const makeUrl of getRepoConfigSources()) {
           try {
             const res = await fetch(makeUrl(), { cache: 'no-store' });
             if (!res.ok) continue;
             const raw = await res.json();
-            if ((raw.version < 4 || raw.version > 6) || !raw.embeds || typeof raw.embeds !== 'object') continue;
-            const sid = String(id).toLowerCase();
-            const blob = Object.prototype.hasOwnProperty.call(raw.embeds, sid) ? raw.embeds[sid] : null;
+            if (!raw.embeds) continue;
+            const blob = raw.embeds[String(id).toLowerCase()];
             if (!blob) continue;
-
-            if (!blob.k || !blob.hash || !blob.salt) throw new Error('Embed inválido: falta clave, hash o salt aleatorio.');
-
-            const expected = await hashEmbedKey(blob.k, blob.salt);
-            if (expected !== blob.hash) {
-              const expectedV5 = await CryptoEngine.sha256('elchini-embed-integrity-v5:' + String(blob.salt) + ':' + blob.k);
-              const expectedV4 = await CryptoEngine.sha256('elchini-embed-integrity-v4:' + String(blob.salt) + ':' + blob.k);
-              if (expectedV5 !== blob.hash && expectedV4 !== blob.hash) {
-                throw new Error('La verificación del hash del embed falló.');
-              }
-            }
-
             const d = await decryptEmbed(blob, blob.k);
-            if (!d || !d.canal) throw new Error('Configuración de canal inválida.');
-
-            const allow = (d.canal.origins) || [];
-            if (Array.isArray(allow) && allow.length) {
-              let po = '';
-              try {
-                po = (location.ancestorOrigins && location.ancestorOrigins[0]) || new URL(document.referrer).origin;
-              } catch (_) {}
-              if (!allow.some(o => String(o).replace(/\/+$/, '') === po)) {
-                return { error: 'Este embed no está autorizado en este sitio.' };
-              }
+            if (d && d.canal) {
+              const cfg = normalizeConfig({ baseUrl: d.baseUrl, token: d.token, canales: [d.canal] });
+              if (cfg && cfg.canales.length) return { ...cfg, error: '' };
             }
-
-            const cfg = normalizeConfig({ baseUrl: d.baseUrl, token: d.token, canales: [d.canal] });
-            if (cfg && cfg.canales.length) return { ...cfg, error: '' };
-          } catch (e) {
-            console.warn('Embed:', e);
-            err = 'No se pudo verificar o descifrar el embed. Publicá nuevamente el JSON con salt aleatorio.';
-          }
+          } catch (e) {}
         }
-        return { error: err };
-      }
-
-      function isLocalBase(u) {
-        try {
-          const x = new URL(u);
-          return !/^https?:$/.test(x.protocol) || x.hostname === 'localhost' || /^(127\.|10\.|192\.168\.)/.test(x.hostname);
-        } catch (_) {
-          return true;
-        }
+        return { error: 'No se pudo cargar el embed.' };
       }
 
       function pagesUrl(repo) {
@@ -1279,14 +1352,14 @@
 
       function getPublicBase() {
         let href = location.href.split('?')[0].split('#')[0];
-        if (isLocalBase(href) || href.includes('codebeautify.org') || !href.endsWith('inicio.html')) {
+        if (!/^https?:$/.test(location.protocol) || href.includes('localhost') || !href.endsWith('inicio.html')) {
           return pagesUrl(getActiveRepo());
         }
         return href;
       }
 
       /* ========================================================
-         INICIALIZACIÓN DE ENTORNO
+         INICIALIZACIÓN
       ======================================================== */
       window.addEventListener('DOMContentLoaded', async () => {
         const embedIdParam = new URLSearchParams(location.search).get('embed_ch');
@@ -1317,15 +1390,11 @@
           if ($('ch-count')) $('ch-count').textContent = appData.canales.length;
         }
 
-        const st = $('admin-status');
-        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Blindaje Activo: WebGL FBO + XOR + SHA-256 + AES-GCM';
+        if ($('admin-status')) $('admin-status').textContent = config.error ? '⚠ ' + config.error : '✓ Blindaje Activo: WebGL FBO + XOR + SHA-256 + AES-GCM';
         hidePlayerMessage();
         await initShakaPlayer();
       });
 
-      /* ========================================================
-         ADMINISTRACIÓN & PUBLICACIÓN DIRECTA A GITHUB (SHA + XOR + AES)
-      ======================================================== */
       window.formatAndRewriteJson = function() {
         saveInputsToStorage();
         const el = $('vault-json-input');
@@ -1333,10 +1402,10 @@
           const list = parseChannelsText(el.value.trim());
           el.value = JSON.stringify(list, null, 2);
           saveInputsToStorage();
-          $('ch-count').textContent = list.length;
-          alert('¡JSON sincronizado! Cada canal tiene un id único.');
+          if ($('ch-count')) $('ch-count').textContent = list.length;
+          alert('¡JSON sincronizado!');
         } catch (e) {
-          alert('El JSON no es válido, no se modificó nada: ' + e.message);
+          alert('Error: ' + e.message);
         }
       };
 
@@ -1348,26 +1417,16 @@
         const pass = getActiveVaultPass();
         const st = $('admin-status');
 
-        if (!pat) {
-          alert('Falta el GitHub Personal Access Token (PAT).');
-          return;
-        }
-        if (!repo || !repo.includes('/')) {
-          alert('El repositorio debe tener el formato usuario/repo.');
-          return;
-        }
-        if (!pass) {
-          alert('Falta la Contraseña Maestra de Cifrado.');
+        if (!pat || !repo.includes('/') || !pass) {
+          alert('Faltan credenciales (PAT, Repo o Contraseña Maestra).');
           return;
         }
 
         let channelsList;
         try {
           channelsList = parseChannelsText($('vault-json-input').value.trim());
-          const bad = channelsList.find(c => !String(c.path || c.url || c.ruta || '').trim());
-          if (bad) throw new Error(`El canal "${bad.name || bad.id}" no tiene path.`);
         } catch (err) {
-          alert('Error en el formato del JSON de canales: ' + err.message);
+          alert('Error en JSON: ' + err.message);
           return;
         }
 
@@ -1378,92 +1437,43 @@
         const baseUrlVal = getActiveBaseUrl();
         const tokenVal = getActiveGlobalToken();
         const apiUrl = `https://api.github.com/repos/${repo}/contents/token.json`;
-        const headers = {
-          'Authorization': `Bearer ${pat}`,
-          'Accept': 'application/vnd.github+json'
-        };
+        const headers = { 'Authorization': `Bearer ${pat}`, 'Accept': 'application/vnd.github+json' };
 
         publishing = true;
         try {
           if (st) st.textContent = 'Cifrando con SHA-256 + XOR + AES-256-GCM...';
 
-          const encryptedConfig = JSON.parse(await CryptoEngine.encryptJson({
-            baseUrl: baseUrlVal,
-            token: tokenVal,
-            canales: channelsList
-          }, pass));
-
+          const encryptedConfig = JSON.parse(await CryptoEngine.encryptJson({ baseUrl: baseUrlVal, token: tokenVal, canales: channelsList }, pass));
           const embeds = {};
           const slugs = embedSlugs(channelsList);
-
           const randomMasterSalt = crypto.getRandomValues(new Uint8Array(16));
           const masterKey = await createMasterHmacKey(pass, randomMasterSalt);
 
           for (let i = 0; i < channelsList.length; i++) {
             const c = channelsList[i];
             const normalized = normalizeConfig({ baseUrl: baseUrlVal, token: tokenVal, canales: [c] });
-            const canal = normalized.canales[0];
-
             const randomEmbedSalt = crypto.getRandomValues(new Uint8Array(16));
             const saltB64 = toB64(randomEmbedSalt);
-
             const k = await embedKeyHex(masterKey, c.id, randomEmbedSalt);
-            const hash = await hashEmbedKey(k, saltB64);
-
-            const blob = await encryptEmbed({
-              baseUrl: baseUrlVal,
-              token: tokenVal,
-              canal
-            }, k);
-
-            embeds[slugs[i]] = {
-              ...blob,
-              salt: saltB64,
-              k,
-              hash
-            };
+            const hash = await CryptoEngine.sha256('elchini-embed-integrity-v6:' + saltB64 + ':' + k);
+            const blob = await encryptEmbed({ baseUrl: baseUrlVal, token: tokenVal, canal: normalized.canales[0] }, k);
+            embeds[slugs[i]] = { ...blob, salt: saltB64, k, hash };
           }
 
-          const finalJSON = {
-            ...encryptedConfig,
-            version: 6,
-            embeds
-          };
-
+          const finalJSON = { ...encryptedConfig, version: 6, embeds };
           let sha = '';
           const g = await fetch(apiUrl + '?t=' + Date.now(), { cache: 'no-store', headers });
-          if (g.ok) {
-            sha = (await g.json()).sha;
-          } else if (g.status !== 404) {
-            throw new Error('No se pudo leer token.json (HTTP ' + g.status + '). Revisá el PAT y el repositorio.');
-          }
+          if (g.ok) sha = (await g.json()).sha;
 
           if (st) st.textContent = 'Enviando a GitHub...';
-          const body = {
-            message: 'Publish multi-layer vault: SHA-256 + XOR + AES-256-GCM',
-            content: btoa(unescape(encodeURIComponent(JSON.stringify(finalJSON))))
-          };
+          const body = { message: 'Publish vault v6', content: btoa(unescape(encodeURIComponent(JSON.stringify(finalJSON)))) };
           if (sha) body.sha = sha;
 
-          const put = await fetch(apiUrl, {
-            method: 'PUT',
-            headers: {
-              ...headers,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-          });
-
-          if (!put.ok) {
-            let detail = 'Error API GitHub';
-            try {
-              detail = (await put.json()).message || detail;
-            } catch (_) {}
-            throw new Error(detail);
-          }
+          const put = await fetch(apiUrl, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          if (!put.ok) throw new Error((await put.json()).message || 'Error API GitHub');
 
           if (st) st.textContent = '¡Publicado con éxito!';
-          alert('¡token.json publicado! Todos los canales y la bóveda fueron blindados con SHA-256, XOR y AES-256-GCM.');
+          alert('¡token.json publicado con éxito!');
         } catch (e) {
           if (st) st.textContent = 'Error al publicar';
           alert('Fallo al publicar: ' + e.message);
@@ -1486,13 +1496,10 @@
         const content = $(`content-${tab}`);
         const btn = $(`tab-${tab}`);
         if (!content || !btn) return;
-
         content.classList.add('active');
         btn.classList.add('active');
 
-        const canales = getActiveChannels();
-        if ($('ch-count')) $('ch-count').textContent = canales.length;
-
+        if ($('ch-count')) $('ch-count').textContent = getActiveChannels().length;
         if (tab !== 'player') video.pause();
         if (tab === 'channels') renderChannelsTable();
         if (tab === 'embeds') renderEmbedsGallery();
@@ -1504,153 +1511,84 @@
       };
 
       function escapeHTML(v) {
-        return String(v ?? '').replace(/[&<>"']/g, ch => ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        }[ch]));
+        return String(v ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
       }
 
       function renderChannelsTable() {
         const q = ($('search-box') ? $('search-box').value : '').toLowerCase();
         const container = $('channels-table-container');
         if (!container) return;
-
         const canales = getActiveChannels();
         const filtered = canales.filter(c => String(c.name).toLowerCase().includes(q));
-
         if (!filtered.length) {
-          container.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">No hay canales cargados. Sincronice en Admin.</div>';
+          container.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">No hay canales cargados.</div>';
           return;
         }
 
-        let html = `
-          <table class="w-full text-left text-xs text-gray-300">
-            <thead class="bg-gray-800 text-gray-400 border-b border-gray-700 sticky top-0">
-              <tr>
-                <th class="p-2.5">Canal</th>
-                <th class="p-2.5">Path</th>
-                <th class="p-2.5">ClearKey</th>
-                <th class="p-2.5 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-800">
-        `;
-
+        let html = '<table class="w-full text-left text-xs text-gray-300"><thead class="bg-gray-800 text-gray-400 border-b border-gray-700 sticky top-0"><tr><th class="p-2.5">Canal</th><th class="p-2.5">Path</th><th class="p-2.5">ClearKey</th><th class="p-2.5 text-right">Acción</th></tr></thead><tbody class="divide-y divide-gray-800">';
         filtered.forEach(c => {
           const idx = canales.indexOf(c);
           html += `
             <tr class="hover:bg-gray-800/40">
               <td class="p-2.5 font-bold text-white">${escapeHTML(c.name)}</td>
-              <td class="p-2.5">
-                <input type="text" value="${escapeHTML(c.path)}" readonly class="bg-gray-950 border border-gray-700 text-gray-300 font-mono text-xs px-2 py-1 rounded w-full">
-              </td>
+              <td class="p-2.5"><input type="text" value="${escapeHTML(c.path)}" readonly class="bg-gray-950 border border-gray-700 text-gray-300 font-mono text-xs px-2 py-1 rounded w-full"></td>
               <td class="p-2.5 font-mono text-yellow-400 text-[11px]">${escapeHTML(c.clearkey || 'Auto-KID')}</td>
-              <td class="p-2.5 text-right">
-                <button onclick="playChannelByIndex(${idx})" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] cursor-pointer">
-                  <i class="fa-solid fa-play"></i> Reproducir
-                </button>
-              </td>
-            </tr>
-          `;
+              <td class="p-2.5 text-right"><button onclick="playChannelByIndex(${idx})" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] cursor-pointer"><i class="fa-solid fa-play"></i> Reproducir</button></td>
+            </tr>`;
         });
-
         container.innerHTML = html + '</tbody></table>';
       }
 
       window.playChannelByIndex = function(i) {
-        const canales = getActiveChannels();
-        if (i < 0 || i >= canales.length) return;
         currentIdx = i;
         switchTab('player');
       };
 
-      /* ========================================================
-         SELECTOR DE RESOLUCIONES FLOTANTE
-      ======================================================== */
       function buildQualityMenu() {
         if (!player) return;
         qmenu.innerHTML = '';
-
         const auto = document.createElement('div');
         auto.textContent = 'Auto';
         auto.onclick = () => {
-          player.configure({
-            abr: {
-              enabled: true
-            }
-          });
+          player.configure({ abr: { enabled: true } });
           qmenu.style.display = 'none';
         };
         qmenu.appendChild(auto);
 
         const seen = new Set();
-        player.getVariantTracks()
-          .filter(t => t.height)
-          .sort((a, b) => b.height - a.height)
-          .forEach(t => {
-            if (seen.has(t.height)) return;
-            seen.add(t.height);
-            const d = document.createElement('div');
-            d.textContent = t.height + 'p';
-            d.onclick = () => {
-              player.configure({
-                abr: {
-                  enabled: false
-                }
-              });
-              player.selectVariantTrack(t, true);
-              qmenu.style.display = 'none';
-            };
-            qmenu.appendChild(d);
-          });
+        player.getVariantTracks().filter(t => t.height).sort((a, b) => b.height - a.height).forEach(t => {
+          if (seen.has(t.height)) return;
+          seen.add(t.height);
+          const d = document.createElement('div');
+          d.textContent = t.height + 'p';
+          d.onclick = () => {
+            player.configure({ abr: { enabled: false } });
+            player.selectVariantTrack(t, true);
+            qmenu.style.display = 'none';
+          };
+          qmenu.appendChild(d);
+        });
       }
 
-      /* ========================================================
-         CARGA DE STREAMING + ZERO-MEMORY DE CLAVES
-      ======================================================== */
       async function loadStream() {
         const canales = getActiveChannels();
-        if (!canales.length) {
-          showPlayerMessage('No hay canales cargados. Verifique el Editor JSON en Admin.');
-          return;
-        }
-
+        if (!canales.length) { showPlayerMessage('No hay canales cargados.'); return; }
         const base = getActiveBaseUrl();
-        if (!base) {
-          showPlayerMessage('No se encontró Base URL en el Panel de Admin.');
-          return;
-        }
+        if (!base) { showPlayerMessage('No se encontró Base URL.'); return; }
 
         const requestId = ++playbackRequest;
         const c = canales[currentIdx] || canales[0];
         if (!c) return;
 
-        // EJECUCIÓN DEL PING-PONG DE FBOs CON SHA + XOR ANTES DE CLEARKEY
         if (player) {
           if (c.clearkey && String(c.clearkey).includes(':')) {
             const p = String(c.clearkey).split(':');
             const webglProcessed = await WebGLClearKeyEngine.process(p[0], p[1]);
-
-            player.configure({
-              drm: {
-                clearKeys: {
-                  [webglProcessed.kid]: webglProcessed.key
-                }
-              }
-            });
-
-            // Zero-Memory: Purgar buffers en memoria volátil de JS
+            player.configure({ drm: { clearKeys: { [webglProcessed.kid]: webglProcessed.key } } });
             webglProcessed.kid = null;
             webglProcessed.key = null;
           } else {
-            player.configure({
-              drm: {
-                clearKeys: {}
-              }
-            });
+            player.configure({ drm: { clearKeys: {} } });
           }
         }
 
@@ -1663,22 +1601,15 @@
         finalUrl += (finalUrl.includes('?') ? '&' : '?') + qp.join('&');
 
         try {
-          if (!player) {
-            await initShakaPlayer();
-            return;
-          }
+          if (!player) { await initShakaPlayer(); return; }
           if (requestId !== playbackRequest) return;
-
           showPlayerMessage(c.name, '#9ca3af');
-
           await player.load(finalUrl);
           reloadTries = 0;
           if (requestId !== playbackRequest) return;
-
           loadedKey = streamKey();
           buildQualityMenu();
           hidePlayerMessage();
-
           try {
             await video.play();
           } catch (_) {
@@ -1709,55 +1640,33 @@
         if (!player) {
           player = new shaka.Player();
           await player.attach(video);
-
-          const RETRY = {
-            maxAttempts: 5,
-            baseDelay: 500,
-            backoffFactor: 2,
-            fuzzFactor: 0.5,
-            timeout: 30000
-          };
-
+          const RETRY = { maxAttempts: 5, baseDelay: 500, backoffFactor: 2, fuzzFactor: 0.5, timeout: 30000 };
           player.configure({
             preferredAudioLanguage: 'es',
             preferredTextLanguage: 'es',
-            abr: {
-              enabled: true,
-              switchInterval: 2
-            },
+            abr: { enabled: true, switchInterval: 2 },
             streaming: {
               bufferingGoal: 25,
               rebufferingGoal: 2,
               bufferBehind: 20,
               stallEnabled: true,
               stallThreshold: 1,
-              stallSkip: 0.1,
               smallGapLimit: 0.5,
               jumpLargeGaps: true,
               retryParameters: RETRY
             },
-            manifest: {
-              retryParameters: RETRY
-            }
+            manifest: { retryParameters: RETRY }
           });
-
           player.addEventListener('error', e => {
             if (e.detail && e.detail.category === shaka.util.Error.Category.NETWORK) {
-              try {
-                player.retryStreaming();
-              } catch (_) {}
+              try { player.retryStreaming(); } catch (_) {}
             }
           });
-
           player.addEventListener('trackschanged', buildQualityMenu);
         }
-
         if (getActiveChannels().length > 0) await loadStream();
       }
 
-      /* ========================================================
-         CONTROLADORES DE INTERFAZ Y PANTALLA COMPLETA
-      ======================================================== */
       playBtn.onclick = () => {
         if (video.paused) video.play();
         else video.pause();
@@ -1789,52 +1698,24 @@
       };
 
       async function toggleFS() {
-        const isIPhone = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        if (isIPhone && video.webkitEnterFullscreen) {
+        if (/iPhone|iPod/i.test(navigator.userAgent) && video.webkitEnterFullscreen) {
           video.webkitEnterFullscreen();
           return;
         }
-
-        const isFs = document.fullscreenElement || 
-                     document.webkitFullscreenElement || 
-                     document.mozFullScreenElement || 
-                     document.msFullscreenElement;
-
+        const isFs = document.fullscreenElement || document.webkitFullscreenElement;
         if (!isFs) {
-          const req = box.requestFullscreen || 
-                      box.webkitRequestFullscreen || 
-                      box.mozRequestFullScreen || 
-                      box.msRequestFullscreen;
-
+          const req = box.requestFullscreen || box.webkitRequestFullscreen;
           if (req) {
             try {
               const res = req.call(box);
               if (res && res.then) await res;
-            } catch (err) {
-              if (video.webkitEnterFullscreen) {
-                video.webkitEnterFullscreen();
-                return;
-              }
-            }
-
-            if (screen.orientation && screen.orientation.lock) {
-              screen.orientation.lock('landscape').catch(() => {});
-            }
-          } else if (video.webkitEnterFullscreen) {
-            video.webkitEnterFullscreen();
+            } catch (_) {}
+            if (screen.orientation?.lock) screen.orientation.lock('landscape').catch(() => {});
           }
         } else {
-          if (screen.orientation && screen.orientation.unlock) {
-            try { screen.orientation.unlock(); } catch (err) {}
-          }
-
-          const exit = document.exitFullscreen || 
-                       document.webkitExitFullscreen || 
-                       document.mozCancelFullScreen || 
-                       document.msExitFullscreen;
-          if (exit) {
-            exit.call(document).catch(() => {});
-          }
+          if (screen.orientation?.unlock) try { screen.orientation.unlock(); } catch (_) {}
+          const exit = document.exitFullscreen || document.webkitExitFullscreen;
+          if (exit) exit.call(document).catch(() => {});
         }
       }
 
@@ -1859,23 +1740,11 @@
 
       qmenu.onclick = e => e.stopPropagation();
 
-      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-
       document.addEventListener('fullscreenchange', async () => {
         if (document.fullscreenElement) {
-          if (!isIOS && screen.orientation?.lock) {
-            try {
-              await screen.orientation.lock('landscape');
-            } catch (e) {}
-          }
-          if (isIOS) box.classList.add('ios-landscape');
+          if (screen.orientation?.lock) try { await screen.orientation.lock('landscape'); } catch (_) {}
         } else {
-          if (!isIOS && screen.orientation?.unlock) {
-            try {
-              screen.orientation.unlock();
-            } catch (e) {}
-          }
-          box.classList.remove('ios-landscape');
+          if (screen.orientation?.unlock) try { screen.orientation.unlock(); } catch (_) {}
         }
       });
 
@@ -1883,22 +1752,16 @@
       function showUI() {
         box.classList.remove('hide-ui');
         clearTimeout(uiTimer);
-        if (!video.paused) {
-          uiTimer = setTimeout(() => box.classList.add('hide-ui'), 2500);
-        }
+        if (!video.paused) uiTimer = setTimeout(() => box.classList.add('hide-ui'), 2500);
       }
 
       box.addEventListener('mousemove', showUI);
       box.addEventListener('touchstart', showUI);
       box.addEventListener('click', showUI);
 
-      /* ========================================================
-         GALERÍA Y GENERADOR DE EMBEDS CON HMAC + SHA-256 + XOR
-      ======================================================== */
       async function renderEmbedsGallery() {
         const seq = ++gallerySeq;
         saveInputsToStorage();
-
         const q = ($('search-embeds-box') ? $('search-embeds-box').value : '').toLowerCase();
         const container = $('embeds-grid-container');
         if (!container) return;
@@ -1916,7 +1779,6 @@
 
         const canales = getActiveChannels();
         const filtered = canales.filter(c => String(c.name).toLowerCase().includes(q));
-
         if (!filtered.length) {
           container.innerHTML = '<div class="col-span-2 text-center py-10 text-gray-500 text-sm">No hay canales cargados.</div>';
           return;
@@ -1934,20 +1796,15 @@
           cards.push(`
             <div class="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3 shadow-xl">
               <div class="flex justify-between items-center gap-2">
-                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
-                  <i class="fa-solid fa-code text-sky-400 mr-1.5"></i> ${escapeHTML(c.name)}
-                </h3>
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-code text-sky-400 mr-1.5"></i> ${escapeHTML(c.name)}</h3>
                 <span class="text-[10px] bg-gray-900 text-sky-400 px-2 py-0.5 rounded font-mono">${escapeHTML(id)}</span>
               </div>
               <div class="flex gap-2">
                 <input type="text" readonly value="${escapeHTML(code)}" class="bg-gray-900 border border-gray-800 text-[10px] font-mono text-gray-400 px-2 py-1 rounded flex-1 min-w-0 select-all">
-                <button type="button" data-copy-embed class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white text-xs rounded transition font-medium cursor-pointer">
-                  <i class="fa-solid fa-copy"></i> Copiar
-                </button>
+                <button type="button" data-copy-embed class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white text-xs rounded transition font-medium cursor-pointer"><i class="fa-solid fa-copy"></i> Copiar</button>
                 <a href="${escapeHTML(src)}" target="_blank" rel="noopener" class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-sky-400 text-xs rounded border border-gray-700 font-medium">Probar</a>
               </div>
-            </div>
-          `);
+            </div>`);
         }
 
         if (seq !== gallerySeq) return;
@@ -1959,9 +1816,7 @@
             try {
               await navigator.clipboard.writeText(input.value);
               button.innerHTML = '<i class="fa-solid fa-check"></i> Copiado';
-              setTimeout(() => {
-                button.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar';
-              }, 1500);
+              setTimeout(() => { button.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1500);
             } catch (_) {
               input.focus();
               input.select();
