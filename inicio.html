@@ -250,19 +250,8 @@
       margin: 0 4px;
     }
 
-    /* LA BOLA AZUL RESTAURADA (20px) */
-    #flow-player input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #0080ff;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 8px rgba(0, 128, 255, 0.85);
-      transition: transform 0.1s ease;
-    }
+#flow-player input[type=range]::-webkit-slider-thumb{width:0;height:0;}
+#flow-player input[type=range]::-moz-range-thumb{width:0;height:0;border:0;}
 
     #flow-player input[type=range]::-webkit-slider-thumb:hover {
       transform: scale(1.1);
