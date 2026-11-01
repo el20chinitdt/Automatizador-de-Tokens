@@ -1770,7 +1770,7 @@ void main(){
         let finalUrl = base.replace(/\/+$/, '') + (path.startsWith('/') ? path : '/' + path);
         const qp = [];
         if (tk) qp.push(`token=${encodeURIComponent(tk)}`);
-        qp.push('dvr_window_length=60');
+        qp.push('');
         finalUrl += (finalUrl.includes('?') ? '&' : '?') + qp.join('&');
 
         try {
