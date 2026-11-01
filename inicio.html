@@ -1769,9 +1769,9 @@ void main(){
         const path = c.path.trim();
         let finalUrl = base.replace(/\/+$/, '') + (path.startsWith('/') ? path : '/' + path);
         const qp = [];
-        if (tk) qp.push(`token=${encodeURIComponent(tk)}`);
-        qp.push('dvr_window_length=60');
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + qp.join('&');
+        const tq = tokenToQuery(tk, finalUrl);
+        if (tq) qp.push(tq);
+        if (qp.length) finalUrl += (finalUrl.includes('?') ? '&' : '?') + qp.join('&');
 
         try {
           if (!player) {
