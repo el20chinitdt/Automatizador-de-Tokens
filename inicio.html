@@ -12,6 +12,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/shaka-player.compiled.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl-sealedbox-js@1.2.0/sealedbox.web.js"></script>
 
   <!-- ====================================================================
        ESTILOS DEL REPRODUCTOR Y PIPELINE GPU NATIVO (CON BOLA AZUL)
@@ -250,8 +252,8 @@
       margin: 0 4px;
     }
 
-#flow-player input[type=range]::-webkit-slider-thumb{width:0;height:0;}
-#flow-player input[type=range]::-moz-range-thumb{width:0;height:0;border:0;}
+    #flow-player input[type=range]::-webkit-slider-thumb{width:0;height:0;}
+    #flow-player input[type=range]::-moz-range-thumb{width:0;height:0;border:0;}
 
     #flow-player input[type=range]::-webkit-slider-thumb:hover {
       transform: scale(1.1);
@@ -1089,19 +1091,25 @@ void main(){
         watermark.style.left = left + '%';
       }, 9000);
 
-      function getRepoConfigSources() {
+      function getRepoFileSources(filePath) {
         const repo = getActiveRepo();
         const [owner, name] = repo.split('/');
         const sources = [];
         if (owner && name) {
-          sources.push(() => `https://${owner.toLowerCase()}.github.io/${name}/token.json?t=` + Date.now());
-          sources.push(() => `https://raw.githubusercontent.com/${owner}/${name}/refs/heads/main/token.json?t=` + Date.now());
-          sources.push(() => `https://raw.githubusercontent.com/${owner}/${name}/master/token.json?t=` + Date.now());
+          const host = owner.toLowerCase() + '.github.io';
+          const pagesBase = name.toLowerCase() === host ? `https://${host}` : `https://${host}/${name}`;
+          sources.push(() => `${pagesBase}/${filePath}?t=` + Date.now());
+          sources.push(() => `https://raw.githubusercontent.com/${owner}/${name}/refs/heads/main/${filePath}?t=` + Date.now());
+          sources.push(() => `https://raw.githubusercontent.com/${owner}/${name}/master/${filePath}?t=` + Date.now());
         }
         if (/^https?:$/.test(location.protocol)) {
-          sources.push(() => 'token.json?t=' + Date.now());
+          sources.push(() => `${filePath}?t=` + Date.now());
         }
         return sources;
+      }
+
+      function getRepoConfigSources() {
+        return getRepoFileSources('token.json');
       }
 
       function extractToken(s) {
@@ -1272,6 +1280,20 @@ void main(){
         return JSON.parse(new TextDecoder().decode(pt));
       }
 
+      async function loadEmbedKeyFromActionFile(sid) {
+        const safeSid = sid.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (!safeSid) return '';
+        for (const makeUrl of getRepoFileSources(`embeds/${encodeURIComponent(safeSid)}.json`)) {
+          try {
+            const res = await fetch(makeUrl(), { cache: 'no-store' });
+            if (!res.ok) continue;
+            const j = await res.json();
+            if (j && typeof j.k === 'string' && j.k) return j.k;
+          } catch (_) {}
+        }
+        return '';
+      }
+
       async function loadEmbedConfig(id) {
         if (!id) return { error: 'Embed sin canal. Copiá de nuevo el código desde "Generador de Embeds".' };
         let err = 'Canal no disponible. Entrá a Admin y tocá "Publicar JSON Cifrado a GitHub".';
@@ -1286,18 +1308,22 @@ void main(){
             const blob = Object.prototype.hasOwnProperty.call(raw.embeds, sid) ? raw.embeds[sid] : null;
             if (!blob) continue;
 
-            if (!blob.k || !blob.hash || !blob.salt) throw new Error('Embed inválido: falta clave, hash o salt aleatorio.');
+            const embedK = blob.k || await loadEmbedKeyFromActionFile(sid);
+            if (!embedK) {
+              return { error: 'GitHub Actions está descifrando y generando la clave desde EMBED_KEYS. Esperá 15s y recargá.' };
+            }
+            if (!blob.hash || !blob.salt) throw new Error('Embed inválido: falta hash o salt aleatorio.');
 
-            const expected = await hashEmbedKey(blob.k, blob.salt);
+            const expected = await hashEmbedKey(embedK, blob.salt);
             if (expected !== blob.hash) {
-              const expectedV5 = await CryptoEngine.sha256('elchini-embed-integrity-v5:' + String(blob.salt) + ':' + blob.k);
-              const expectedV4 = await CryptoEngine.sha256('elchini-embed-integrity-v4:' + String(blob.salt) + ':' + blob.k);
+              const expectedV5 = await CryptoEngine.sha256('elchini-embed-integrity-v5:' + String(blob.salt) + ':' + embedK);
+              const expectedV4 = await CryptoEngine.sha256('elchini-embed-integrity-v4:' + String(blob.salt) + ':' + embedK);
               if (expectedV5 !== blob.hash && expectedV4 !== blob.hash) {
                 throw new Error('La verificación del hash del embed falló.');
               }
             }
 
-            const d = await decryptEmbed(blob, blob.k);
+            const d = await decryptEmbed(blob, embedK);
             if (!d || !d.canal) throw new Error('Configuración de canal inválida.');
 
             const allow = (d.canal.origins) || [];
@@ -1377,13 +1403,13 @@ void main(){
         }
 
         const st = $('admin-status');
-        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Blindaje Activo: WebGL FBO + XOR + SHA-256 + AES-GCM + EME Shield';
+        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Blindaje Activo: WebGL FBO + XOR + SHA-256 + AES-GCM + EME Shield + Secrets';
         hidePlayerMessage();
         await initShakaPlayer();
       });
 
       /* ========================================================
-         ADMINISTRACIÓN & PUBLICACIÓN DIRECTA A GITHUB (SHA + XOR + AES)
+         ADMINISTRACIÓN & PUBLICACIÓN DIRECTA A GITHUB (SECRETS + ACTIONS)
       ======================================================== */
       window.formatAndRewriteJson = function() {
         saveInputsToStorage();
@@ -1398,6 +1424,50 @@ void main(){
           alert('El JSON no es válido, no se modificó nada: ' + e.message);
         }
       };
+
+      async function saveGitHubSecret(repo, pat, secretName, secretValue) {
+        const sb = window.sealedBox || (window.nacl && window.nacl.sealedbox);
+        if (!sb || typeof sb.seal !== 'function') {
+          throw new Error('No cargó la librería SealedBox para cifrar el Secret.');
+        }
+
+        const msgBytes = new TextEncoder().encode(secretValue);
+        if (msgBytes.length > 48000) {
+          throw new Error('El Secret ' + secretName + ' supera el límite de 48 KB en GitHub.');
+        }
+
+        const headers = {
+          'Authorization': `Bearer ${pat}`,
+          'Accept': 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28'
+        };
+
+        const pkRes = await fetch(`https://api.github.com/repos/${repo}/actions/secrets/public-key?t=` + Date.now(), {
+          cache: 'no-store',
+          headers
+        });
+
+        if (!pkRes.ok) {
+          throw new Error('No se pudo leer la clave pública de Secrets (HTTP ' + pkRes.status + '). Verificá que tu PAT tenga permiso "Secrets: Read and write" o scope "repo".');
+        }
+
+        const { key_id, key } = await pkRes.json();
+        const pubKeyBytes = fromB64(key);
+        const sealedBytes = sb.seal(msgBytes, pubKeyBytes);
+        const encrypted_value = toB64(sealedBytes);
+
+        const putRes = await fetch(`https://api.github.com/repos/${repo}/actions/secrets/${encodeURIComponent(secretName)}`, {
+          method: 'PUT',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ encrypted_value, key_id })
+        });
+
+        if (!putRes.ok) {
+          let msg = 'HTTP ' + putRes.status;
+          try { msg = (await putRes.json()).message || msg; } catch (_) {}
+          throw new Error('Error al guardar el Secret ' + secretName + ': ' + msg);
+        }
+      }
 
       window.publishDirectToGitHub = async function() {
         if (publishing) return;
@@ -1444,7 +1514,7 @@ void main(){
 
         publishing = true;
         try {
-          if (st) st.textContent = 'Cifrando con SHA-256 + XOR + AES-256-GCM...';
+          if (st) st.textContent = 'Cifrando bóveda y claves K con SHA-256 + XOR + AES-256-GCM...';
 
           const encryptedConfig = JSON.parse(await CryptoEngine.encryptJson({
             baseUrl: baseUrlVal,
@@ -1453,6 +1523,7 @@ void main(){
           }, pass));
 
           const embeds = {};
+          const embedKeys = {};
           const slugs = embedSlugs(channelsList);
 
           const randomMasterSalt = crypto.getRandomValues(new Uint8Array(16));
@@ -1475,13 +1546,19 @@ void main(){
               canal
             }, k);
 
+            embedKeys[slugs[i]] = k;
+
             embeds[slugs[i]] = {
               ...blob,
               salt: saltB64,
-              k,
               hash
             };
           }
+
+          if (st) st.textContent = 'Cifrando K con contraseña maestra y subiendo a Secrets...';
+          const encryptedKeysPayload = await CryptoEngine.encryptJson(embedKeys, pass);
+          await saveGitHubSecret(repo, pat, 'VAULT_PASS', pass);
+          await saveGitHubSecret(repo, pat, 'EMBED_KEYS', encryptedKeysPayload);
 
           const finalJSON = {
             ...encryptedConfig,
@@ -1497,9 +1574,9 @@ void main(){
             throw new Error('No se pudo leer token.json (HTTP ' + g.status + '). Revisá el PAT y el repositorio.');
           }
 
-          if (st) st.textContent = 'Enviando a GitHub...';
+          if (st) st.textContent = 'Enviando token.json sin K y disparando GitHub Actions...';
           const body = {
-            message: 'Publish multi-layer vault: SHA-256 + XOR + AES-256-GCM + EME Hook Shield',
+            message: 'Publish multi-layer vault without exposed K (encrypted K in GitHub Secrets)',
             content: btoa(unescape(encodeURIComponent(JSON.stringify(finalJSON))))
           };
           if (sha) body.sha = sha;
@@ -1521,10 +1598,10 @@ void main(){
             throw new Error(detail);
           }
 
-          if (st) st.textContent = '¡Publicado con éxito!';
-          alert('¡token.json publicado! Todos los canales y la bóveda fueron blindados con SHA-256, XOR y AES-256-GCM.');
+          if (st) st.textContent = '¡Publicado! GitHub Actions está descifrando EMBED_KEYS y generando embeds/.';
+          alert('¡Publicado! K se cifró con SHA-256 + XOR + AES-256-GCM y se guardó en el Secret EMBED_KEYS. GitHub Actions ya está generando los embeds.');
         } catch (e) {
-          if (st) st.textContent = 'Error al publicar';
+          if (st) st.textContent = 'Error al publicar: ' + e.message;
           alert('Fallo al publicar: ' + e.message);
         } finally {
           publishing = false;
