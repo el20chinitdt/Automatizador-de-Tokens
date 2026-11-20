@@ -1,0 +1,106 @@
+name: Sync Embed Keys from Secret
+
+on:
+  push:
+    paths:
+      - 'token.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-embeds
+  cancel-in-progress: true
+
+jobs:
+  build-embeds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Descifrar EMBED_KEYS (AES-256-GCM + XOR + SHA-256) y generar embeds/
+        env:
+          EMBED_KEYS_ENC: ${{ secrets.EMBED_KEYS }}
+          VAULT_PASS: ${{ secrets.VAULT_PASS }}
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const crypto = require('crypto');
+
+          const rawEnc = (process.env.EMBED_KEYS_ENC || '').trim();
+          const pass = (process.env.VAULT_PASS || '').trim();
+          if (!rawEnc || !pass) {
+            console.error('Faltan los secrets EMBED_KEYS o VAULT_PASS.');
+            process.exit(1);
+          }
+
+          const obj = JSON.parse(rawEnc);
+          if (!obj || !obj.encrypted || !obj.payload || !Array.isArray(obj.payload.salt)) {
+            console.error('Formato inválido en EMBED_KEYS.');
+            process.exit(1);
+          }
+
+          const salt = Buffer.from(obj.payload.salt);
+          const iv = Buffer.from(obj.payload.iv);
+          let dataBytes = Buffer.from(obj.payload.data);
+
+          if (obj.sha256) {
+            const outerSha = crypto.createHash('sha256').update(dataBytes).digest('hex');
+            if (outerSha !== obj.sha256) {
+              console.error('Integridad violada: SHA-256 externo no coincide.');
+              process.exit(1);
+            }
+          }
+
+          if (obj.xor === true || obj.version >= 5) {
+            const rawXor = Buffer.from(pass + ':xor-layer-chini:', 'utf8');
+            const xorKey = crypto.createHash('sha256').update(Buffer.concat([salt, rawXor])).digest();
+            const unxored = Buffer.allocUnsafe(dataBytes.length);
+            for (let i = 0; i < dataBytes.length; i++) {
+              unxored[i] = dataBytes[i] ^ xorKey[i % xorKey.length];
+            }
+            dataBytes = unxored;
+          }
+
+          const aesKey = crypto.pbkdf2Sync(Buffer.from(pass, 'utf8'), salt, obj.iter || 600000, 32, 'sha256');
+          const tag = dataBytes.subarray(dataBytes.length - 16);
+          const ct = dataBytes.subarray(0, dataBytes.length - 16);
+          const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, iv);
+          decipher.setAuthTag(tag);
+          const decryptedText = Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
+
+          if (obj.innerSha) {
+            const innerSha = crypto.createHash('sha256').update(decryptedText, 'utf8').digest('hex');
+            if (innerSha !== obj.innerSha) {
+              console.error('Integridad violada: SHA-256 interno no coincide.');
+              process.exit(1);
+            }
+          }
+
+          const keys = JSON.parse(decryptedText);
+          const outDir = path.join(process.cwd(), 'embeds');
+          fs.rmSync(outDir, { recursive: true, force: true });
+          fs.mkdirSync(outDir, { recursive: true });
+          for (const [slug, k] of Object.entries(keys)) {
+            const safeSlug = String(slug).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+            if (!safeSlug) continue;
+            fs.writeFileSync(path.join(outDir, safeSlug + '.json'), JSON.stringify({ k }));
+          }
+          console.log('Descifrado OK y generados', Object.keys(keys).length, 'archivos en embeds/');
+          EOF
+
+      - name: Publicar carpeta embeds/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add embeds
+          if git diff --cached --quiet; then
+            echo "Sin cambios en embeds/"
+          else
+            git commit -m "Sync embed keys from encrypted EMBED_KEYS secret [skip ci]"
+            git pull --rebase
+            git push
+          fi
