@@ -1,9 +1,11 @@
-name: Sync Embed Keys from Secret
+name: Sync & Rotate Protected Embeds
 
 on:
   push:
     paths:
       - 'token.json'
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -20,8 +22,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Descifrar EMBED_KEYS (AES-256-GCM + XOR + SHA-256) y generar embeds/
+      - name: Descifrar, rotar y generar embeds/*.bin ligados a origen + WebGL
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPO_OWNER: ${{ github.repository_owner }}
           EMBED_KEYS_ENC: ${{ secrets.EMBED_KEYS }}
           VAULT_PASS: ${{ secrets.VAULT_PASS }}
         run: |
@@ -30,77 +34,242 @@ jobs:
           const path = require('path');
           const crypto = require('crypto');
 
-          const rawEnc = (process.env.EMBED_KEYS_ENC || '').trim();
           const pass = (process.env.VAULT_PASS || '').trim();
-          if (!rawEnc || !pass) {
-            console.error('Faltan los secrets EMBED_KEYS o VAULT_PASS.');
+          if (!pass) {
+            console.error('Falta el secret VAULT_PASS.');
             process.exit(1);
           }
 
-          const obj = JSON.parse(rawEnc);
-          if (!obj || !obj.encrypted || !obj.payload || !Array.isArray(obj.payload.salt)) {
-            console.error('Formato inválido en EMBED_KEYS.');
+          const ownerHost = (process.env.REPO_OWNER || 'el20chinitdt').toLowerCase();
+          const DEFAULT_ORIGINS = Array.from(new Set([
+            'https://' + ownerHost + '.github.io',
+            'https://el20chinitdt.github.io',
+            'https://encrypthtmlaes256.edgeone.app',
+            'https://isdntek.com',
+            'https://canalesenvivodeargentina.blogspot.com'
+          ]));
+
+          const sha256Buf = (buf) => crypto.createHash('sha256').update(buf).digest();
+          const sha256Hex = (buf) => sha256Buf(buf).toString('hex');
+
+          function xorBuf(data, key) {
+            const out = Buffer.allocUnsafe(data.length);
+            for (let i = 0; i < data.length; i++) out[i] = data[i] ^ key[i % key.length];
+            return out;
+          }
+
+          function decryptVault(rawText) {
+            const obj = JSON.parse(rawText);
+            if (!obj || !obj.encrypted || !obj.payload || !Array.isArray(obj.payload.salt)) {
+              throw new Error('Formato de bóveda inválido.');
+            }
+            const salt = Buffer.from(obj.payload.salt);
+            const iv = Buffer.from(obj.payload.iv);
+            let dataBytes = Buffer.from(obj.payload.data);
+
+            if (obj.sha256 && sha256Hex(dataBytes) !== obj.sha256) {
+              throw new Error('Integridad violada: SHA-256 externo no coincide.');
+            }
+            if (obj.xor === true || obj.version >= 5) {
+              const xorKey = sha256Buf(Buffer.concat([salt, Buffer.from(pass + ':xor-layer-chini:', 'utf8')]));
+              dataBytes = xorBuf(dataBytes, xorKey);
+            }
+            const aesKey = crypto.pbkdf2Sync(Buffer.from(pass, 'utf8'), salt, obj.iter || 600000, 32, 'sha256');
+            const tag = dataBytes.subarray(dataBytes.length - 16);
+            const ct = dataBytes.subarray(0, dataBytes.length - 16);
+            const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, iv);
+            decipher.setAuthTag(tag);
+            const plain = Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
+
+            if (obj.innerSha && sha256Hex(Buffer.from(plain, 'utf8')) !== obj.innerSha) {
+              throw new Error('Integridad violada: SHA-256 interno no coincide.');
+            }
+            return JSON.parse(plain);
+          }
+
+          function encryptVault(jsonObj) {
+            const salt = crypto.randomBytes(16);
+            const iv = crypto.randomBytes(12);
+            const aesKey = crypto.pbkdf2Sync(Buffer.from(pass, 'utf8'), salt, 600000, 32, 'sha256');
+            const plain = JSON.stringify(jsonObj);
+            const innerSha = sha256Hex(Buffer.from(plain, 'utf8'));
+            const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+            const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final(), cipher.getAuthTag()]);
+            const xorKey = sha256Buf(Buffer.concat([salt, Buffer.from(pass + ':xor-layer-chini:', 'utf8')]));
+            const xorEnc = xorBuf(enc, xorKey);
+            const outerSha = sha256Hex(xorEnc);
+
+            return {
+              encrypted: true,
+              version: 6,
+              xor: true,
+              sha256: outerSha,
+              innerSha,
+              iter: 600000,
+              kdf: 'PBKDF2-SHA256',
+              cipher: 'AES-256-GCM + XOR-STREAM + SHA256-INTEGRITY',
+              payload: {
+                salt: Array.from(salt),
+                iv: Array.from(iv),
+                data: Array.from(xorEnc)
+              }
+            };
+          }
+
+          function embedSlugs(list) {
+            const used = new Set();
+            return list.map(c => {
+              const b = String(c.slug || c.name || 'canal')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'canal';
+              let x = b, n = 2;
+              while (used.has(x)) x = b + '-' + n++;
+              used.add(x);
+              return x;
+            });
+          }
+
+          function encryptEmbedBlob(obj, keyHex) {
+            const rawKey = Buffer.from(keyHex, 'hex');
+            const iv = crypto.randomBytes(12);
+            const aad = Buffer.from('elchini-embed-v6', 'utf8');
+            const cipher = crypto.createCipheriv('aes-256-gcm', rawKey, iv);
+            cipher.setAAD(aad);
+            const ct = Buffer.concat([cipher.update(JSON.stringify(obj), 'utf8'), cipher.final(), cipher.getAuthTag()]);
+            const xorProtected = xorBuf(ct, rawKey);
+            return {
+              version: 6,
+              xor: true,
+              sha256: sha256Hex(xorProtected),
+              iv: iv.toString('base64'),
+              data: xorProtected.toString('base64')
+            };
+          }
+
+          function webglScramble16(buf16) {
+            const out = Buffer.from(buf16);
+            for (let p = 1; p <= 8; p++) {
+              for (let i = 0; i < 16; i++) {
+                const x = Math.floor(i / 4);
+                const ch = i % 4;
+                const delta = ((p * 37 + x * 11 + ch * 53 + 17) % 251) + 1;
+                out[i] = (out[i] + delta) & 0xff;
+              }
+            }
+            return out;
+          }
+
+          function normalizeOrigin(u) {
+            try { return new URL(String(u)).origin.replace(/\/+$/, ''); }
+            catch (_) { return String(u || '').replace(/\/+$/, ''); }
+          }
+
+          const tokenPath = path.join(process.cwd(), 'token.json');
+          if (!fs.existsSync(tokenPath)) {
+            console.error('No existe token.json en el repo.');
             process.exit(1);
           }
 
-          const salt = Buffer.from(obj.payload.salt);
-          const iv = Buffer.from(obj.payload.iv);
-          let dataBytes = Buffer.from(obj.payload.data);
+          const tokenRawText = fs.readFileSync(tokenPath, 'utf8');
+          const tokenObj = JSON.parse(tokenRawText);
+          const vaultData = decryptVault(tokenRawText);
+          const canales = Array.isArray(vaultData.canales) ? vaultData.canales : [];
+          const slugs = embedSlugs(canales);
 
-          if (obj.sha256) {
-            const outerSha = crypto.createHash('sha256').update(dataBytes).digest('hex');
-            if (outerSha !== obj.sha256) {
-              console.error('Integridad violada: SHA-256 externo no coincide.');
-              process.exit(1);
+          let embedKeys = {};
+          let embedsMap = tokenObj.embeds || {};
+
+          if (process.env.EVENT_NAME === 'push' && (process.env.EMBED_KEYS_ENC || '').trim()) {
+            embedKeys = decryptVault(process.env.EMBED_KEYS_ENC.trim());
+          } else {
+            const encryptedConfig = encryptVault({
+              baseUrl: vaultData.baseUrl || '',
+              token: vaultData.token || '',
+              canales
+            });
+            const masterSalt = crypto.randomBytes(16);
+            const hmacKey = crypto.pbkdf2Sync(Buffer.from(pass, 'utf8'), masterSalt, 600000, 32, 'sha256');
+            embedsMap = {};
+
+            for (let i = 0; i < canales.length; i++) {
+              const c = canales[i];
+              const canal = {
+                ...c,
+                name: String(c.name ?? c.nombre ?? c.title ?? 'Sin nombre'),
+                path: String(c.path ?? c.url ?? c.ruta ?? ''),
+                clearkey: c.clearkey ?? c.clearKey ?? ''
+              };
+              const embedSalt = crypto.randomBytes(16);
+              const saltB64 = embedSalt.toString('base64');
+              const k = crypto.createHmac('sha256', hmacKey)
+                .update(Buffer.concat([embedSalt, Buffer.from(':v6:' + String(c.id || (i + 1)), 'utf8')]))
+                .digest('hex');
+              const hash = sha256Hex(Buffer.from('elchini-embed-integrity-v6:' + saltB64 + ':' + k, 'utf8'));
+              const blob = encryptEmbedBlob({
+                baseUrl: vaultData.baseUrl || '',
+                token: vaultData.token || '',
+                canal
+              }, k);
+
+              embedKeys[slugs[i]] = k;
+              embedsMap[slugs[i]] = { ...blob, salt: saltB64, hash };
             }
+
+            fs.writeFileSync(tokenPath, JSON.stringify({ ...encryptedConfig, version: 6, embeds: embedsMap }));
+            console.log('Rotados token.json y claves K para', canales.length, 'canales.');
           }
 
-          if (obj.xor === true || obj.version >= 5) {
-            const rawXor = Buffer.from(pass + ':xor-layer-chini:', 'utf8');
-            const xorKey = crypto.createHash('sha256').update(Buffer.concat([salt, rawXor])).digest();
-            const unxored = Buffer.allocUnsafe(dataBytes.length);
-            for (let i = 0; i < dataBytes.length; i++) {
-              unxored[i] = dataBytes[i] ^ xorKey[i % xorKey.length];
-            }
-            dataBytes = unxored;
-          }
-
-          const aesKey = crypto.pbkdf2Sync(Buffer.from(pass, 'utf8'), salt, obj.iter || 600000, 32, 'sha256');
-          const tag = dataBytes.subarray(dataBytes.length - 16);
-          const ct = dataBytes.subarray(0, dataBytes.length - 16);
-          const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, iv);
-          decipher.setAuthTag(tag);
-          const decryptedText = Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
-
-          if (obj.innerSha) {
-            const innerSha = crypto.createHash('sha256').update(decryptedText, 'utf8').digest('hex');
-            if (innerSha !== obj.innerSha) {
-              console.error('Integridad violada: SHA-256 interno no coincide.');
-              process.exit(1);
-            }
-          }
-
-          const keys = JSON.parse(decryptedText);
           const outDir = path.join(process.cwd(), 'embeds');
           fs.rmSync(outDir, { recursive: true, force: true });
           fs.mkdirSync(outDir, { recursive: true });
-          for (const [slug, k] of Object.entries(keys)) {
-            const safeSlug = String(slug).toLowerCase().replace(/[^a-z0-9_-]/g, '');
-            if (!safeSlug) continue;
-            fs.writeFileSync(path.join(outDir, safeSlug + '.json'), JSON.stringify({ k }));
+
+          let count = 0;
+          for (let i = 0; i < slugs.length; i++) {
+            const sid = slugs[i];
+            const kHex = embedKeys[sid];
+            const blob = embedsMap[sid];
+            if (!kHex || !blob || !blob.salt) continue;
+
+            const cOrigs = Array.isArray(canales[i]?.origins) && canales[i].origins.length
+              ? canales[i].origins.map(normalizeOrigin).filter(Boolean)
+              : DEFAULT_ORIGINS;
+            const origins = Array.from(new Set([...cOrigs, ...DEFAULT_ORIGINS]));
+
+            const kBytes = Buffer.from(kHex, 'hex');
+            const scrambled32 = Buffer.concat([
+              webglScramble16(kBytes.subarray(0, 16)),
+              webglScramble16(kBytes.subarray(16, 32))
+            ]);
+
+            const aad = Buffer.from('elchini-kslot-v7:' + sid + ':' + blob.salt, 'utf8');
+            const slots = [];
+            for (const orig of origins) {
+              const origKey = sha256Buf(Buffer.from('elchini-origin-v7:' + orig + ':' + blob.salt, 'utf8'));
+              const iv = crypto.randomBytes(12);
+              const cipher = crypto.createCipheriv('aes-256-gcm', origKey, iv);
+              cipher.setAAD(aad);
+              const ct = cipher.update(scrambled32);
+              const fin = cipher.final();
+              const tag = cipher.getAuthTag();
+              slots.push(Buffer.concat([iv, ct, fin, tag]));
+            }
+
+            const binName = sha256Hex(Buffer.from('elchini-bin-v7:' + sid + ':' + blob.salt, 'utf8')).slice(0, 24) + '.bin';
+            fs.writeFileSync(path.join(outDir, binName), Buffer.concat(slots));
+            count++;
           }
-          console.log('Descifrado OK y generados', Object.keys(keys).length, 'archivos en embeds/');
+          console.log('Generados', count, 'binarios protegidos por origen + WebGL en embeds/.');
           EOF
 
-      - name: Publicar carpeta embeds/
+      - name: Publicar token.json rotado y embeds/*.bin
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add embeds
+          git add token.json embeds
           if git diff --cached --quiet; then
-            echo "Sin cambios en embeds/"
+            echo "Sin cambios que publicar"
           else
-            git commit -m "Sync embed keys from encrypted EMBED_KEYS secret [skip ci]"
+            git commit -m "Rotate & sync origin-bound WebGL embed bins [skip ci]"
             git pull --rebase
             git push
           fi
