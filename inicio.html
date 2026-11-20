@@ -796,7 +796,6 @@
       const WebGLClearKeyEngine = (() => {
         const PASSES = 8;
         const VS = 'attribute vec2 a_pos;varying vec2 v_uv;void main(){v_uv=(a_pos+1.0)*0.5;gl_Position=vec4(a_pos,0.0,1.0);}';
-        // Suma modular por byte (exacta en float). Ida con u_dir=+1, vuelta con -1.
         const FS = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
@@ -887,7 +886,6 @@ void main(){
           return out;
         }
 
-        // El valor que se devuelve es el que SALE de la GPU, no una copia de la CPU
         function gpuRoundTrip(hex) {
           const clean = String(hex || '').trim().toLowerCase();
           if (!/^[0-9a-f]{32}$/.test(clean)) throw new Error('La ClearKey debe ser hex de 32 caracteres (kid:key).');
@@ -907,8 +905,32 @@ void main(){
           return Array.from(out, b => b.toString(16).padStart(2, '0')).join('');
         }
 
+        function unscrambleBytes16(input16) {
+          if (!(input16 instanceof Uint8Array) || input16.length !== 16) throw new Error('Bloque WebGL inválido.');
+          const s = S || (S = build());
+          const gl = s.gl;
+          if (gl.isContextLost()) { S = null; throw new Error('Se perdió el contexto de la GPU. Reintentá.'); }
+          gl.bindTexture(gl.TEXTURE_2D, s.tex[0]);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, input16);
+          const cur = runPasses(s, 0, -1);
+          const out = readBack(s, cur);
+          if (gl.getError() !== gl.NO_ERROR) throw new Error('Error de WebGL en el pipeline.');
+          return out;
+        }
+
+        async function unscrambleHex32(u8_32) {
+          if (!(u8_32 instanceof Uint8Array) || u8_32.length !== 32) throw new Error('Clave binaria inválida.');
+          const p0 = unscrambleBytes16(u8_32.subarray(0, 16));
+          const p1 = unscrambleBytes16(u8_32.subarray(16, 32));
+          const all = new Uint8Array(32);
+          all.set(p0, 0);
+          all.set(p1, 16);
+          return Array.from(all, b => b.toString(16).padStart(2, '0')).join('');
+        }
+
         return {
-          process: async (rawKid, rawKey) => ({ kid: gpuRoundTrip(rawKid), key: gpuRoundTrip(rawKey) })
+          process: async (rawKid, rawKey) => ({ kid: gpuRoundTrip(rawKid), key: gpuRoundTrip(rawKey) }),
+          unscrambleHex32
         };
       })();
 
@@ -1165,7 +1187,6 @@ void main(){
         appData.baseUrl = cfg.baseUrl;
         appData.token = cfg.token;
         appData.canales = ensureIds(cfg.canales);
-        // token.json es la fuente de verdad: si cambió desde la última lectura, pisa las copias locales viejas
         const sig = JSON.stringify([cfg.baseUrl, cfg.token, appData.canales]);
         const changed = sig !== ls('ch_remote_sig');
         const put = (id, v) => { const el = $(id); if (el && v && (changed || !el.value)) el.value = v; };
@@ -1280,18 +1301,80 @@ void main(){
         return JSON.parse(new TextDecoder().decode(pt));
       }
 
-      async function loadEmbedKeyFromActionFile(sid) {
-        const safeSid = sid.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-        if (!safeSid) return '';
-        for (const makeUrl of getRepoFileSources(`embeds/${encodeURIComponent(safeSid)}.json`)) {
+      const DEFAULT_EMBED_ORIGINS = [
+        'https://el20chinitdt.github.io',
+        'https://encrypthtmlaes256.edgeone.app',
+        'https://isdntek.com',
+        'https://canalesenvivodeargentina.blogspot.com'
+      ];
+
+      function getCallerOrigins() {
+        const out = [];
+        const add = val => {
+          try {
+            if (!val || val === 'null') return;
+            const o = new URL(val).origin.replace(/\/+$/, '');
+            if (o && o !== 'null' && !out.includes(o)) out.push(o);
+          } catch (_) {}
+        };
+        try {
+          if (location.ancestorOrigins && location.ancestorOrigins.length) {
+            for (let i = 0; i < location.ancestorOrigins.length; i++) {
+              add(location.ancestorOrigins[i]);
+            }
+          }
+        } catch (_) {}
+        try {
+          if (document.referrer) add(document.referrer);
+        } catch (_) {}
+        try {
+          if (window.top === window.self && location.origin) add(location.origin);
+        } catch (_) {}
+        return out;
+      }
+
+      async function loadEmbedKeyFromBin(sid, saltB64) {
+        const callers = getCallerOrigins();
+        if (!callers.length) {
+          return { k: '', error: 'Este embed solo puede reproducirse desde un dominio autorizado.' };
+        }
+        const binHash = (await CryptoEngine.sha256('elchini-bin-v7:' + sid + ':' + saltB64)).slice(0, 24);
+        const rel = `embeds/${binHash}.bin`;
+        let bytes = null;
+        for (const makeUrl of getRepoFileSources(rel)) {
           try {
             const res = await fetch(makeUrl(), { cache: 'no-store' });
             if (!res.ok) continue;
-            const j = await res.json();
-            if (j && typeof j.k === 'string' && j.k) return j.k;
+            const buf = new Uint8Array(await res.arrayBuffer());
+            if (buf.length >= 60 && buf.length % 60 === 0) {
+              bytes = buf;
+              break;
+            }
           } catch (_) {}
         }
-        return '';
+        if (!bytes) {
+          return { k: '', error: 'GitHub Actions está generando el módulo binario protegido. Esperá 15s y recargá.' };
+        }
+        if (!(await window.__gpuReady)) {
+          return { k: '', error: 'Se requiere GPU por hardware para descifrar el embed.' };
+        }
+        const aad = new TextEncoder().encode('elchini-kslot-v7:' + sid + ':' + saltB64);
+        for (const orig of callers) {
+          const origKeyBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('elchini-origin-v7:' + orig + ':' + saltB64)));
+          const aesKey = await crypto.subtle.importKey('raw', origKeyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
+          for (let off = 0; off < bytes.length; off += 60) {
+            try {
+              const iv = bytes.subarray(off, off + 12);
+              const ct = bytes.subarray(off + 12, off + 60);
+              const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: aad, tagLength: 128 }, aesKey, ct);
+              const scrambled = new Uint8Array(pt);
+              const kHex = await WebGLClearKeyEngine.unscrambleHex32(scrambled);
+              scrambled.fill(0);
+              return { k: kHex, error: '' };
+            } catch (_) {}
+          }
+        }
+        return { k: '', error: 'Dominio no autorizado para reproducir este embed.' };
       }
 
       async function loadEmbedConfig(id) {
@@ -1308,11 +1391,14 @@ void main(){
             const blob = Object.prototype.hasOwnProperty.call(raw.embeds, sid) ? raw.embeds[sid] : null;
             if (!blob) continue;
 
-            const embedK = blob.k || await loadEmbedKeyFromActionFile(sid);
-            if (!embedK) {
-              return { error: 'GitHub Actions está descifrando y generando la clave desde EMBED_KEYS. Esperá 15s y recargá.' };
-            }
             if (!blob.hash || !blob.salt) throw new Error('Embed inválido: falta hash o salt aleatorio.');
+
+            let embedK = blob.k || '';
+            if (!embedK) {
+              const binRes = await loadEmbedKeyFromBin(sid, blob.salt);
+              if (!binRes.k) return { error: binRes.error };
+              embedK = binRes.k;
+            }
 
             const expected = await hashEmbedKey(embedK, blob.salt);
             if (expected !== blob.hash) {
@@ -1326,13 +1412,12 @@ void main(){
             const d = await decryptEmbed(blob, embedK);
             if (!d || !d.canal) throw new Error('Configuración de canal inválida.');
 
-            const allow = (d.canal.origins) || [];
+            const allow = (d.canal.origins && d.canal.origins.length) ? d.canal.origins : DEFAULT_EMBED_ORIGINS;
             if (Array.isArray(allow) && allow.length) {
-              let po = '';
-              try {
-                po = (location.ancestorOrigins && location.ancestorOrigins[0]) || new URL(document.referrer).origin;
-              } catch (_) {}
-              if (!allow.some(o => String(o).replace(/\/+$/, '') === po)) {
+              const callers = getCallerOrigins();
+              const norm = u => { try { return new URL(String(u)).origin.replace(/\/+$/, ''); } catch (_) { return String(u || '').replace(/\/+$/, ''); } };
+              const allowedSet = new Set(allow.map(norm));
+              if (!callers.some(c => allowedSet.has(c))) {
                 return { error: 'Este embed no está autorizado en este sitio.' };
               }
             }
@@ -1403,7 +1488,7 @@ void main(){
         }
 
         const st = $('admin-status');
-        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Blindaje Activo: WebGL FBO + XOR + SHA-256 + AES-GCM + EME Shield + Secrets';
+        if (st) st.textContent = config.error ? '⚠ ' + config.error : '✓ Blindaje Activo: WebGL FBO + XOR + SHA-256 + AES-GCM + Secrets + Origin-Lock';
         hidePlayerMessage();
         await initShakaPlayer();
       });
@@ -1598,8 +1683,8 @@ void main(){
             throw new Error(detail);
           }
 
-          if (st) st.textContent = '¡Publicado! GitHub Actions está descifrando EMBED_KEYS y generando embeds/.';
-          alert('¡Publicado! K se cifró con SHA-256 + XOR + AES-256-GCM y se guardó en el Secret EMBED_KEYS. GitHub Actions ya está generando los embeds.');
+          if (st) st.textContent = '¡Publicado! Actions está generando los binarios .bin protegidos por origen + WebGL.';
+          alert('¡Publicado! K se cifró en EMBED_KEYS y GitHub Actions ya está generando los archivos .bin protegidos por origen y WebGL.');
         } catch (e) {
           if (st) st.textContent = 'Error al publicar: ' + e.message;
           alert('Fallo al publicar: ' + e.message);
@@ -1747,10 +1832,9 @@ void main(){
       /* ========================================================
          CARGA DE STREAMING + ZERO-MEMORY DE CLAVES
       ======================================================== */
-      const CFG_REFRESH_MS = 5 * 60 * 1000; // cada cuánto relee token.json mientras alguien mira
+      const CFG_REFRESH_MS = 5 * 60 * 1000;
       let lastCfgRefresh = 0;
 
-      // Relee token.json. Devuelve true si algo cambió y ya recargó el stream.
       async function refreshConfig(force) {
         if (window.__shieldBlocked || !appData.canales.length) return false;
         if (!force && document.hidden) return false;
@@ -1821,8 +1905,6 @@ void main(){
         const c = canales[currentIdx] || canales[0];
         if (!c) return;
 
-        // EME ClearKey: la clave que llega a Shaka sale del pipeline de GPU.
-        // resetConfiguration evita que queden claves del canal anterior.
         if (!window.__shieldVerify()) return;
         if (player) {
           player.resetConfiguration();
